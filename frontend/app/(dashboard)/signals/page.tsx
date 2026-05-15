@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { TrendingUp, Filter } from 'lucide-react'
 import { SignalCard } from '@/components/signal-card'
+import { PageHeader } from '@/components/page-header'
 import type { Signal, SignalType } from '@/lib/types'
 import { SIGNAL_LABELS } from '@/lib/types'
 
@@ -41,16 +42,10 @@ export default function SignalsPage() {
 
   return (
     <div className="space-y-6 animate-slide-up">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold" style={{ color: 'rgba(255,255,255,0.88)' }}>
-            Signal Feed
-          </h1>
-          <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
-            {signals.length} signals detected across all companies
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Signal Feed"
+        subtitle={`${signals.length} signals detected across all companies`}
+      />
 
       {/* Type filter */}
       <div className="flex items-center gap-2 flex-wrap">

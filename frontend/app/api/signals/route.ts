@@ -15,9 +15,11 @@ export async function GET(req: NextRequest) {
 
   const supabase = createServiceClient()
 
+  // !inner turns the join into an inner join so only signals belonging
+  // to the current user's companies are returned (not all signals)
   let query = supabase
     .from('signals')
-    .select('*, company:companies(*)')
+    .select('*, company:companies!inner(*)')
     .eq('companies.user_id', session.user.id)
     .order('detected_at', { ascending: false })
     .limit(limit)

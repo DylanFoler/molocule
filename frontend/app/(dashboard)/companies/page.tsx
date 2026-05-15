@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Building2, Search, RefreshCw, Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { CompanyCard } from '@/components/company-card'
+import { PageHeader } from '@/components/page-header'
 import { CompanyForm } from '@/components/company-form'
 import { LoadDemoButton } from '@/components/load-demo-button'
 import { toast } from '@/hooks/use-toast'
@@ -79,29 +80,25 @@ export default function CompaniesPage() {
   return (
     <div className="space-y-5 animate-slide-up">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold" style={{ color: 'rgba(255,255,255,0.88)' }}>
-            Companies
-          </h1>
-          <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
-            {companies.length} {companies.length === 1 ? 'company' : 'companies'} tracked
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {companies.length > 0 && (
-            <button onClick={handleScanAll} disabled={scanningAll}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all"
-              style={{ color: 'rgba(255,255,255,0.55)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)' }}
-              onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.9)')}
-              onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.55)')}>
-              {scanningAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-              {scanningAll ? 'Scanning...' : 'Scan all'}
-            </button>
-          )}
-          <CompanyForm onSuccess={fetchData} />
-        </div>
-      </div>
+      <PageHeader
+        title="Companies"
+        subtitle={`${companies.length} ${companies.length === 1 ? 'company' : 'companies'} tracked`}
+        right={
+          <>
+            {companies.length > 0 && (
+              <button onClick={handleScanAll} disabled={scanningAll}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all"
+                style={{ color: 'rgba(255,255,255,0.55)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)' }}
+                onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.9)')}
+                onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.55)')}>
+                {scanningAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                {scanningAll ? 'Scanning...' : 'Scan all'}
+              </button>
+            )}
+            <CompanyForm onSuccess={fetchData} />
+          </>
+        }
+      />
 
       {/* Search */}
       <div className="relative">
@@ -137,6 +134,7 @@ export default function CompaniesPage() {
               company={company}
               onDelete={handleDelete}
               signalTypes={signalTypesByCompany.get(company.id)}
+              onScanComplete={fetchData}
             />
           ))}
         </div>
