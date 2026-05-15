@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ExternalLink, Github, Linkedin, RefreshCw } from 'lucide-react'
 import { getFaviconUrl, getDomain, timeAgo } from '@/lib/utils'
@@ -43,7 +44,8 @@ export function CompanyCard({ company, onDelete, signalTypes, onScanComplete }: 
   }
 
   return (
-    <div className="relative rounded-2xl overflow-hidden group transition-all duration-300"
+    <Link href={`/companies/${company.id}`}
+      className="relative rounded-2xl overflow-hidden group transition-all duration-300 block"
       style={{
         background: 'rgba(255,255,255,0.02)',
         border: '1px solid rgba(255,255,255,0.07)',
@@ -118,9 +120,10 @@ export function CompanyCard({ company, onDelete, signalTypes, onScanComplete }: 
             )}
           </div>
 
-          {/* Scan + delete controls */}
-          <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onClick={handleScan} disabled={scanning} title="Scan for new signals"
+          {/* Scan + delete controls — stop propagation so link doesn't fire */}
+          <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={e => e.preventDefault()}>
+            <button onClick={e => { e.preventDefault(); handleScan() }} disabled={scanning} title="Scan for new signals"
               className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.45)' }}
               onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.9)')}
@@ -128,7 +131,7 @@ export function CompanyCard({ company, onDelete, signalTypes, onScanComplete }: 
               <RefreshCw className={`w-3.5 h-3.5 ${scanning ? 'animate-spin' : ''}`} />
             </button>
             {onDelete && (
-              <button onClick={() => onDelete(company.id)}
+              <button onClick={e => { e.preventDefault(); onDelete(company.id) }}
                 className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold transition-colors"
                 style={{ color: 'rgba(255,255,255,0.3)', border: '1px solid rgba(255,255,255,0.07)' }}
                 onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(248,113,113,0.8)')}
@@ -146,6 +149,7 @@ export function CompanyCard({ company, onDelete, signalTypes, onScanComplete }: 
           </h3>
           <a href={company.website.startsWith('http') ? company.website : `https://${company.website}`}
             target="_blank" rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
             className="text-[11px] flex items-center gap-1 mt-0.5 transition-colors w-fit"
             style={{ color: 'rgba(255,255,255,0.3)' }}
             onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.65)')}
@@ -165,6 +169,7 @@ export function CompanyCard({ company, onDelete, signalTypes, onScanComplete }: 
           <div className="flex items-center gap-2.5">
             {company.github_org && (
               <a href={`https://github.com/${company.github_org}`} target="_blank" rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
                 style={{ color: 'rgba(255,255,255,0.28)' }}
                 onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.75)')}
                 onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.28)')}>
@@ -173,6 +178,7 @@ export function CompanyCard({ company, onDelete, signalTypes, onScanComplete }: 
             )}
             {company.linkedin_url && (
               <a href={company.linkedin_url} target="_blank" rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
                 style={{ color: 'rgba(255,255,255,0.28)' }}
                 onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.75)')}
                 onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.28)')}>
@@ -188,6 +194,6 @@ export function CompanyCard({ company, onDelete, signalTypes, onScanComplete }: 
           </p>
         )}
       </div>
-    </div>
+    </Link>
   )
 }
