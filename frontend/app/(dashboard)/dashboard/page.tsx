@@ -4,18 +4,20 @@ import { createServiceClient } from '@/lib/supabase'
 import { StatsOverview } from '@/components/stats-overview'
 import { SignalCard } from '@/components/signal-card'
 import { CompanyForm } from '@/components/company-form'
+import { OnboardingPrompt } from '@/components/onboarding-prompt'
 import type { Signal, DashboardStats } from '@/lib/types'
 import { TrendingUp } from 'lucide-react'
 
 async function getDashboardData(userId: string) {
   const supabase = createServiceClient()
 
-  const [companiesRes, signalsRes, reposRes, digestsRes, recentSignalsRes] = await Promise.all([
+  const [companiesRes, signalsRes, reposRes, digestsRes, recentSignalsRes, userRes] = await Promise.all([
     supabase.from('companies').select('id').eq('user_id', userId),
     supabase.from('signals').select('id, is_new, detected_at').eq('companies.user_id', userId),
     supabase.from('repos').select('id').eq('user_id', userId),
     supabase.from('digests').select('id').eq('repos.user_id', userId),
     supabase.from('signals').select('*, company:companies(*)').order('detected_at', { ascending: false }).limit(8),
+    supabase.from('users').select('preferences').eq('id', userId).single(),
   ])
 
   const today = new Date()
@@ -29,25 +31,39 @@ async function getDashboardData(userId: string) {
     digests_generated: digestsRes.data?.length ?? 0,
   }
 
-  return { stats, recentSignals: recentSignalsRes.data ?? [] }
+  const preferences = (userRes.data as { preferences?: { company_types?: string[] } } | null)?.preferences ?? null
+
+  return {
+    stats,
+    recentSignals: recentSignalsRes.data ?? [],
+    showOnboarding: !preferences?.company_types?.length,
+  }
 }
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
-  const { stats, recentSignals } = await getDashboardData(session!.user.id)
+  const { stats, recentSignals, showOnboarding } = await getDashboardData(session!.user.id)
   const firstName = session!.user.name?.split(' ')[0]
 
   return (
     <div className="space-y-7 animate-slide-up">
 
+      {/* One-time setup prompt */}
+      {showOnboarding && <OnboardingPrompt userId={session!.user.id} />}
+
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight mb-1">
-            <span className="text-foreground/60 font-normal">gm,</span>{' '}
-            <span className="gradient-vapor-text">{firstName}</span>
+            <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}>gm,</span>{' '}
+            <span style={{
+              background: 'linear-gradient(135deg, #ffffff, rgba(255,255,255,0.6))',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}>{firstName}</span>
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm" style={{ color: 'rgba(255,255,255,0.35)' }}>
             Signal intelligence · {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
         </div>
@@ -61,21 +77,18 @@ export default async function DashboardPage() {
       <div>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4"
-              style={{ color: '#a855f7', filter: 'drop-shadow(0 0 4px rgba(168,85,247,0.6))' }} />
-            <h2 className="text-sm font-semibold text-foreground">Recent Signals</h2>
+            <TrendingUp className="w-4 h-4" style={{ color: 'rgba(255,255,255,0.6)' }} />
+            <h2 className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.82)' }}>Recent Signals</h2>
             {stats.new_signals_today > 0 && (
               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold"
-                style={{ color: '#4ade80', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.2)' }}>
+                style={{ color: 'rgba(255,255,255,0.7)', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}>
                 {stats.new_signals_today} new
               </span>
             )}
           </div>
-          <a href="/signals"
-            className="text-xs transition-colors"
-            style={{ color: 'rgba(168,85,247,0.6)' }}
-            onMouseEnter={undefined}
-            onMouseLeave={undefined}>
+          <a href="/signals" className="text-xs transition-colors"
+            style={{ color: 'rgba(255,255,255,0.3)' }}
+            onMouseEnter={undefined} onMouseLeave={undefined}>
             View all →
           </a>
         </div>
@@ -84,15 +97,14 @@ export default async function DashboardPage() {
           <div className="rounded-xl p-10 text-center"
             style={{
               background: 'rgba(255,255,255,0.01)',
-              border: '1px solid rgba(168,85,247,0.1)',
-              backgroundImage: 'linear-gradient(135deg, rgba(168,85,247,0.03), rgba(34,211,238,0.02))',
+              border: '1px solid rgba(255,255,255,0.06)',
             }}>
             <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
-              style={{ background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.2)' }}>
-              <TrendingUp className="w-6 h-6" style={{ color: '#a855f7' }} />
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <TrendingUp className="w-6 h-6" style={{ color: 'rgba(255,255,255,0.4)' }} />
             </div>
-            <p className="text-sm font-medium text-foreground/80 mb-1">No signals yet</p>
-            <p className="text-xs text-muted-foreground">Add companies to start tracking buying signals.</p>
+            <p className="text-sm font-medium mb-1" style={{ color: 'rgba(255,255,255,0.7)' }}>No signals yet</p>
+            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>Add companies to start tracking signals.</p>
           </div>
         ) : (
           <div className="grid gap-3 md:grid-cols-2">

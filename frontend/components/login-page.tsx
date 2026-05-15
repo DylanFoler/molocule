@@ -1,13 +1,14 @@
 'use client'
 
 import { signIn } from 'next-auth/react'
-import { Github, Zap, GitPullRequest, TrendingUp, Shield } from 'lucide-react'
+import { Github, GitPullRequest, TrendingUp, Shield, Sparkles } from 'lucide-react'
 import { GeometricBackground } from '@/components/geometric-background'
+import { MoleculeIcon } from '@/components/ui/molecule-icon'
 
 const features = [
   { icon: TrendingUp, label: 'Buying Signals' },
   { icon: GitPullRequest, label: 'PR Digests' },
-  { icon: Zap, label: 'AI Insights' },
+  { icon: Sparkles, label: 'AI Insights' },
   { icon: Shield, label: 'Change Detection' },
 ]
 
@@ -18,7 +19,6 @@ export function LoginPage() {
 
       <GeometricBackground count={18} />
 
-      {/* Very subtle center bloom */}
       <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
         <div className="w-[600px] h-[600px] rounded-full"
           style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.025) 0%, transparent 70%)' }} />
@@ -34,7 +34,7 @@ export function LoginPage() {
               border: '1px solid rgba(255,255,255,0.1)',
               boxShadow: '0 0 30px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.08)',
             }}>
-            <Zap className="w-6 h-6" style={{ color: 'rgba(255,255,255,0.85)', filter: 'drop-shadow(0 0 8px rgba(255,255,255,0.5))' }} />
+            <MoleculeIcon size={28} glowIntensity="medium" />
           </div>
 
           <h1 className="text-[30px] font-bold tracking-tight leading-none mb-2">
@@ -48,7 +48,7 @@ export function LoginPage() {
             </span>
           </h1>
           <p className="text-[10px] tracking-[0.25em] uppercase" style={{ color: 'rgba(255,255,255,0.25)' }}>
-            GTM Signal Intelligence
+            Signal Intelligence
           </p>
         </div>
 
@@ -70,15 +70,13 @@ export function LoginPage() {
             border: '1px solid rgba(255,255,255,0.09)',
             boxShadow: '0 0 0 1px rgba(255,255,255,0.03) inset, 0 8px 32px rgba(0,0,0,0.6)',
           }}>
-
-          {/* Top hairline */}
           <div className="absolute top-0 left-6 right-6 h-px"
             style={{ background: 'rgba(255,255,255,0.08)' }} />
 
           <div className="p-6">
             <p className="text-[13px] font-semibold mb-1" style={{ color: 'rgba(255,255,255,0.88)' }}>Sign in to continue</p>
             <p className="text-[11px] leading-relaxed mb-5" style={{ color: 'rgba(255,255,255,0.38)' }}>
-              Connect GitHub to track buying signals and generate PR digests.
+              Connect GitHub to track company signals and generate PR digests.
             </p>
 
             <button
@@ -104,7 +102,7 @@ export function LoginPage() {
         </div>
 
         <p className="text-[10px] text-center mt-5 tracking-[0.18em] uppercase" style={{ color: 'rgba(255,255,255,0.15)' }}>
-          Built for GTM &amp; full-stack engineers
+          Built for signal tracking &amp; engineering teams
         </p>
       </div>
     </div>

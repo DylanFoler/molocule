@@ -118,7 +118,20 @@ alter table public.repos enable row level security;
 alter table public.digests enable row level security;
 alter table public.notifications enable row level security;
 
--- RLS policies (service role bypasses these — workers use service role)
+-- User preferences (set during onboarding)
+alter table public.users
+  add column if not exists preferences jsonb not null default '{}';
+
+-- Extended digest metrics
+alter table public.digests
+  add column if not exists avg_cycle_time_hours  numeric,
+  add column if not exists avg_review_time_hours numeric,
+  add column if not exists pr_size_distribution  jsonb not null default '{"xs":0,"s":0,"m":0,"l":0}',
+  add column if not exists stale_pr_count        int not null default 0,
+  add column if not exists failed_job_names      text[] not null default '{}',
+  add column if not exists release_notes         text;
+
+-- RLS policies (service role bypasses these - workers use service role)
 create policy "users_own" on public.users for all using (id = auth.uid()::text);
 create policy "companies_own" on public.companies for all using (user_id = auth.uid()::text);
 create policy "signals_via_company" on public.signals for select using (

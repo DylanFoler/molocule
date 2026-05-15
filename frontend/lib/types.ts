@@ -1,5 +1,25 @@
 export type SignalType = 'FUNDING' | 'KEY_HIRE' | 'LAYOFF' | 'PRODUCT_LAUNCH' | 'GENERAL'
 
+export type CompanyType =
+  | 'SaaS' | 'FinTech' | 'DevTools' | 'E-commerce'
+  | 'Healthcare' | 'Enterprise' | 'Crypto/Web3' | 'Consumer'
+
+export type SignalFocus = 'Funding' | 'Key Hires' | 'Product Launches' | 'Layoffs' | 'All'
+
+export interface UserPreferences {
+  company_types: CompanyType[]
+  signal_focus: SignalFocus[]
+}
+
+export interface CompanyEnrichment {
+  name: string
+  website: string
+  description: string | null
+  github_org: string | null
+  blog_rss_url: string | null
+  favicon_url: string | null
+}
+
 export interface Company {
   id: string
   user_id: string
@@ -50,6 +70,12 @@ export interface Digest {
   open_count: number
   raw_data: DigestRawData
   created_at: string
+  avg_cycle_time_hours: number | null
+  avg_review_time_hours: number | null
+  pr_size_distribution: { xs: number; s: number; m: number; l: number }
+  stale_pr_count: number
+  failed_job_names: string[]
+  release_notes: string | null
 }
 
 export interface DigestRawData {
@@ -67,8 +93,11 @@ export interface PullRequest {
   url: string
   merged_at: string | null
   created_at: string
+  updated_at?: string
   labels: string[]
   body: string | null
+  additions?: number
+  deletions?: number
 }
 
 export interface WorkflowRun {

@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Full-stack GTM signal tracker + GitHub PR auto-summarizer. Portfolio piece targeting GTM engineering and full-stack engineering roles.
+Full-stack signal tracker + GitHub PR auto-summarizer. Portfolio piece targeting signal intelligence and full-stack engineering roles.
 
 **Live modules:**
 1. **Buying Signal Tracker** — add target companies, nightly scans detect funding/hires/layoffs/launches, Claude writes one-line insights, Slack/email delivery
