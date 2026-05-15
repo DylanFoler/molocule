@@ -1,13 +1,36 @@
 'use client'
 
-import { TrendingUp, ExternalLink, Github, Linkedin } from 'lucide-react'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { TrendingUp, ExternalLink, Github, Linkedin, RefreshCw } from 'lucide-react'
 import { getFaviconUrl, getDomain, timeAgo } from '@/lib/utils'
+import { toast } from '@/hooks/use-toast'
 import type { Company } from '@/lib/types'
 
 export function CompanyCard({ company, onDelete }: { company: Company; onDelete?: (id: string) => void }) {
+  const router = useRouter()
+  const [scanning, setScanning] = useState(false)
   const signalCount = company.signal_count ?? 0
   const hasRecentSignal = company.latest_signal_at &&
     new Date(company.latest_signal_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+
+  async function handleScan() {
+    setScanning(true)
+    try {
+      const res = await fetch(`/api/companies/${company.id}/scan`, { method: 'POST' })
+      const data = await res.json()
+      const found = data?.signals_found ?? 0
+      toast({
+        title: found > 0 ? `${found} new signal${found > 1 ? 's' : ''}` : 'No new signals',
+        description: found > 0 ? `Fresh signals detected for ${company.name}.` : `Nothing new in the last 7 days.`,
+      })
+      router.refresh()
+    } catch {
+      toast({ title: 'Scan failed', variant: 'destructive' })
+    } finally {
+      setScanning(false)
+    }
+  }
 
   return (
     <div className="relative rounded-xl overflow-hidden group transition-all duration-300"
@@ -21,7 +44,6 @@ export function CompanyCard({ company, onDelete }: { company: Company; onDelete?
         ;(e.currentTarget as HTMLElement).style.transform = 'translateY(0)'
       }}>
 
-      {/* Top hairline on hover */}
       <div className="absolute top-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-300"
         style={{ background: 'rgba(255,255,255,0.08)' }} />
 
@@ -57,6 +79,7 @@ export function CompanyCard({ company, onDelete }: { company: Company; onDelete?
               <ExternalLink className="w-2.5 h-2.5" />
             </a>
           </div>
+
         </div>
 
         <div className="flex items-center gap-3 mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
@@ -66,6 +89,16 @@ export function CompanyCard({ company, onDelete }: { company: Company; onDelete?
             <span className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>signals</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
+            {/* Scan for new signals */}
+            <button onClick={handleScan} disabled={scanning}
+              title="Scan for new signals"
+              className="transition-colors"
+              style={{ color: 'rgba(255,255,255,0.3)' }}
+              onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.7)')}
+              onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.3)')}>
+              <RefreshCw className={`w-3.5 h-3.5 ${scanning ? 'animate-spin' : ''}`} />
+            </button>
+
             {company.github_org && (
               <a href={`https://github.com/${company.github_org}`} target="_blank" rel="noopener noreferrer"
                 className="transition-colors" style={{ color: 'rgba(255,255,255,0.3)' }}
@@ -94,16 +127,11 @@ export function CompanyCard({ company, onDelete }: { company: Company; onDelete?
 
       {onDelete && (
         <button onClick={() => onDelete(company.id)}
-          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold"
-          style={{ color: 'rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-          onMouseEnter={e => {
-            (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.7)'
-            ;(e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.1)'
-          }}
-          onMouseLeave={e => {
-            (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.3)'
-            ;(e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'
-          }}>×
+          className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-all duration-200 w-5 h-5 rounded flex items-center justify-center text-[11px] font-bold"
+          style={{ color: 'rgba(255,255,255,0.25)', background: 'transparent' }}
+          onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.65)'}
+          onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.25)'}>
+          x
         </button>
       )}
     </div>

@@ -83,11 +83,27 @@ export function CompanyForm({ onSuccess }: CompanyFormProps) {
         body: JSON.stringify(form),
       })
       if (!res.ok) throw new Error()
-      toast({ title: 'Company added', description: `${form.name} is now being tracked.` })
+      const company = await res.json()
       setOpen(false)
       resetDialog()
       onSuccess?.()
       router.refresh()
+
+      // Fire-and-forget scan so signals appear without waiting for nightly cron
+      toast({ title: 'Company added', description: `Scanning for recent signals on ${form.name}...` })
+      fetch(`/api/companies/${company.id}/scan`, { method: 'POST' })
+        .then((r) => r.json())
+        .then((data) => {
+          const found = data?.signals_found ?? 0
+          toast({
+            title: found > 0 ? `${found} signal${found > 1 ? 's' : ''} found` : 'No recent signals found',
+            description: found > 0
+              ? `New signals detected for ${form.name}.`
+              : `We will keep watching ${form.name} nightly.`,
+          })
+          router.refresh()
+        })
+        .catch(() => {})
     } catch {
       toast({ title: 'Error', description: 'Failed to add company. Try again.', variant: 'destructive' })
     } finally {

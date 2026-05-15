@@ -43,7 +43,6 @@ async function getDashboardData(userId: string) {
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
   const { stats, recentSignals, showOnboarding } = await getDashboardData(session!.user.id)
-  const firstName = session!.user.name?.split(' ')[0]
 
   return (
     <div className="space-y-7 animate-slide-up">
@@ -54,17 +53,11 @@ export default async function DashboardPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight mb-1">
-            <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}>gm,</span>{' '}
-            <span style={{
-              background: 'linear-gradient(135deg, #ffffff, rgba(255,255,255,0.6))',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-            }}>{firstName}</span>
+          <h1 className="text-xl font-semibold tracking-tight" style={{ color: 'rgba(255,255,255,0.88)' }}>
+            Signal Overview
           </h1>
-          <p className="text-sm" style={{ color: 'rgba(255,255,255,0.35)' }}>
-            Signal intelligence · {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
         </div>
         <CompanyForm />
