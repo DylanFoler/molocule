@@ -4,8 +4,9 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import Image from 'next/image'
-import { LayoutDashboard, Building2, TrendingUp, GitPullRequest, LogOut, Zap } from 'lucide-react'
+import { LayoutDashboard, Building2, TrendingUp, GitPullRequest, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { MoleculeIcon } from '@/components/ui/molecule-icon'
 
 interface SidebarProps {
   user?: { name?: string | null; email?: string | null; image?: string | null }
@@ -39,7 +40,7 @@ export function Sidebar({ user }: SidebarProps) {
               background: 'rgba(255,255,255,0.06)',
               border: '1px solid rgba(255,255,255,0.1)',
             }}>
-            <Zap className="w-3.5 h-3.5" style={{ color: 'rgba(255,255,255,0.8)', filter: 'drop-shadow(0 0 4px rgba(255,255,255,0.4))' }} />
+            <MoleculeIcon size={16} glowIntensity="subtle" />
           </div>
           <span className="font-bold text-[15px] tracking-tight" style={{
             background: 'linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.5))',

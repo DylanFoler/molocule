@@ -6,8 +6,8 @@ import { Providers } from './providers'
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
 export const metadata: Metadata = {
-  title: 'Molocule — GTM Signal Tracker & Dev Digest',
-  description: 'Track buying signals and automate GitHub PR summaries for GTM and engineering teams.',
+  title: 'Molocule - Signal Tracker & Dev Digest',
+  description: 'Track company signals and automate GitHub PR summaries for engineering teams.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
