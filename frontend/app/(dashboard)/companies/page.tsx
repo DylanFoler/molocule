@@ -1,89 +1,143 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Building2, Search } from 'lucide-react'
+import { Building2, Search, RefreshCw, Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { CompanyCard } from '@/components/company-card'
 import { CompanyForm } from '@/components/company-form'
 import { LoadDemoButton } from '@/components/load-demo-button'
 import { toast } from '@/hooks/use-toast'
-import type { Company } from '@/lib/types'
+import { useRouter } from 'next/navigation'
+import type { Company, Signal, SignalType } from '@/lib/types'
 
 export default function CompaniesPage() {
-  const [companies, setCompanies] = useState<Company[]>([])
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
+  const router = useRouter()
+  const [companies,   setCompanies]   = useState<Company[]>([])
+  const [signals,     setSignals]     = useState<Signal[]>([])
+  const [loading,     setLoading]     = useState(true)
+  const [search,      setSearch]      = useState('')
+  const [scanningAll, setScanningAll] = useState(false)
 
-  const fetchCompanies = useCallback(async () => {
-    const res = await fetch('/api/companies')
-    if (res.ok) {
-      const data = await res.json()
-      setCompanies(data)
-    }
+  const fetchData = useCallback(async () => {
+    const [cRes, sRes] = await Promise.all([
+      fetch('/api/companies'),
+      fetch('/api/signals?limit=500'),
+    ])
+    if (cRes.ok) setCompanies(await cRes.json())
+    if (sRes.ok) setSignals(await sRes.json())
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetchCompanies() }, [fetchCompanies])
+  useEffect(() => {
+    fetchData()
+    const id = setInterval(fetchData, 30_000)
+    return () => clearInterval(id)
+  }, [fetchData])
 
   async function handleDelete(id: string) {
     const res = await fetch(`/api/companies?id=${id}`, { method: 'DELETE' })
     if (res.ok) {
-      setCompanies((c) => c.filter((co) => co.id !== id))
+      setCompanies(c => c.filter(co => co.id !== id))
       toast({ title: 'Company removed' })
     }
   }
 
-  const filtered = companies.filter((c) =>
+  async function handleScanAll() {
+    setScanningAll(true)
+    try {
+      const res  = await fetch('/api/companies/scan-all', { method: 'POST' })
+      const data = await res.json()
+      const found = data?.total_found ?? 0
+      toast({
+        title: found > 0 ? `${found} new signal${found > 1 ? 's' : ''} found` : 'No new signals',
+        description: found > 0
+          ? `Scanned ${data.scanned} companies.`
+          : `All ${data.scanned} companies are up to date.`,
+      })
+      router.refresh()
+      await fetchData()
+    } catch {
+      toast({ title: 'Scan failed', variant: 'destructive' })
+    } finally {
+      setScanningAll(false)
+    }
+  }
+
+  // Build signal-type set per company
+  const signalTypesByCompany = new Map<string, SignalType[]>()
+  for (const s of signals) {
+    if (!signalTypesByCompany.has(s.company_id)) signalTypesByCompany.set(s.company_id, [])
+    const arr = signalTypesByCompany.get(s.company_id)!
+    if (!arr.includes(s.type)) arr.push(s.type)
+  }
+
+  const filtered = companies.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
     c.website.toLowerCase().includes(search.toLowerCase())
   )
 
   return (
-    <div className="space-y-6 animate-slide-up">
+    <div className="space-y-5 animate-slide-up">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Building2 className="w-6 h-6 text-violet-400" />
+          <h1 className="text-xl font-semibold" style={{ color: 'rgba(255,255,255,0.88)' }}>
             Companies
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {companies.length} companies tracked
+          <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
+            {companies.length} {companies.length === 1 ? 'company' : 'companies'} tracked
           </p>
         </div>
-        <CompanyForm onSuccess={fetchCompanies} />
+        <div className="flex items-center gap-2">
+          {companies.length > 0 && (
+            <button onClick={handleScanAll} disabled={scanningAll}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all"
+              style={{ color: 'rgba(255,255,255,0.55)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)' }}
+              onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.9)')}
+              onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.55)')}>
+              {scanningAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+              {scanningAll ? 'Scanning...' : 'Scan all'}
+            </button>
+          )}
+          <CompanyForm onSuccess={fetchData} />
+        </div>
       </div>
 
+      {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Search companies..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'rgba(255,255,255,0.3)' }} />
+        <Input placeholder="Search companies..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
       </div>
 
+      {/* Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-32 rounded-xl border border-border bg-card animate-pulse" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-44 rounded-2xl animate-pulse"
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }} />
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-xl p-12 text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-          <Building2 className="w-7 h-7 mx-auto mb-3" style={{ color: 'rgba(255,255,255,0.25)' }} />
+        <div className="rounded-xl p-12 text-center"
+          style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <Building2 className="w-7 h-7 mx-auto mb-3" style={{ color: 'rgba(255,255,255,0.2)' }} />
           <p className="text-sm font-medium mb-1" style={{ color: 'rgba(255,255,255,0.6)' }}>
             {search ? 'No companies match your search' : 'No companies yet'}
           </p>
           <p className="text-xs mb-4" style={{ color: 'rgba(255,255,255,0.3)' }}>
-            {search ? 'Try a different search term.' : 'Add your first company or load demo data to see the full experience.'}
+            {search ? 'Try a different term.' : 'Track a company or load demo data to see the full experience.'}
           </p>
           {!search && <LoadDemoButton variant="compact" />}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((company) => (
-            <CompanyCard key={company.id} company={company} onDelete={handleDelete} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filtered.map(company => (
+            <CompanyCard
+              key={company.id}
+              company={company}
+              onDelete={handleDelete}
+              signalTypes={signalTypesByCompany.get(company.id)}
+            />
           ))}
         </div>
       )}
