@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2, X } from 'lucide-react'
 import { MoleculeIcon } from '@/components/ui/molecule-icon'
+import { LoadDemoButton } from '@/components/load-demo-button'
 import { toast } from '@/hooks/use-toast'
 import type { CompanyType, SignalFocus } from '@/lib/types'
 
@@ -155,6 +156,14 @@ export function OnboardingPrompt({ userId: _userId }: OnboardingPromptProps) {
               )
             })}
           </div>
+        </div>
+
+        {/* Demo data shortcut */}
+        <div className="mb-4 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+          <p className="text-[10px] mb-2" style={{ color: 'rgba(255,255,255,0.3)' }}>
+            Want to see a full preview first?
+          </p>
+          <LoadDemoButton variant="compact" />
         </div>
 
         {/* Actions */}

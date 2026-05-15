@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { GitPullRequest, Plus, Loader2, RefreshCw, Github } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ReportCard } from '@/components/report-card'
+import { LoadDemoButton } from '@/components/load-demo-button'
 import { toast } from '@/hooks/use-toast'
 import type { Digest, Repo } from '@/lib/types'
 
@@ -83,11 +84,8 @@ export default function ReportsPage() {
     <div className="space-y-6 animate-slide-up">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <GitPullRequest className="w-6 h-6 text-violet-400" />
-            Dev Digest
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <h1 className="text-xl font-semibold" style={{ color: 'rgba(255,255,255,0.88)' }}>Dev Digest</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
             Auto-generated PR summaries and engineering reports
           </p>
         </div>
@@ -154,18 +152,17 @@ export default function ReportsPage() {
       {loading ? (
         <div className="space-y-4">
           {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="h-48 rounded-xl border border-border bg-card animate-pulse" />
+            <div key={i} className="h-48 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }} />
           ))}
         </div>
       ) : digests.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card p-12 text-center">
-          <div className="w-14 h-14 rounded-full bg-violet-600/10 flex items-center justify-center mx-auto mb-4">
-            <GitPullRequest className="w-7 h-7 text-violet-400" />
-          </div>
-          <p className="text-sm font-medium text-foreground mb-2">No digests yet</p>
-          <p className="text-xs text-muted-foreground">
-            Connect a GitHub repo and generate your first digest to see PR summaries here.
+        <div className="rounded-xl p-12 text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <GitPullRequest className="w-7 h-7 mx-auto mb-3" style={{ color: 'rgba(255,255,255,0.25)' }} />
+          <p className="text-sm font-medium mb-1" style={{ color: 'rgba(255,255,255,0.6)' }}>No digests yet</p>
+          <p className="text-xs mb-4" style={{ color: 'rgba(255,255,255,0.3)' }}>
+            Connect a GitHub repo and generate your first digest, or load demo data to see how it looks.
           </p>
+          <LoadDemoButton variant="compact" />
         </div>
       ) : (
         <div className="space-y-4">

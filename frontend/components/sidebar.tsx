@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import Image from 'next/image'
-import { LayoutDashboard, Building2, TrendingUp, GitPullRequest, LogOut } from 'lucide-react'
+import { LayoutDashboard, Building2, TrendingUp, GitPullRequest, Network, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MoleculeIcon } from '@/components/ui/molecule-icon'
 
@@ -16,6 +16,7 @@ const navItems = [
   { href: '/dashboard', label: 'Overview',   icon: LayoutDashboard },
   { href: '/companies', label: 'Companies',  icon: Building2 },
   { href: '/signals',   label: 'Signals',    icon: TrendingUp },
+  { href: '/network',   label: 'Network',    icon: Network },
   { href: '/reports',   label: 'Dev Digest', icon: GitPullRequest },
 ]
 

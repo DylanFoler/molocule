@@ -5,8 +5,9 @@ import { StatsOverview } from '@/components/stats-overview'
 import { SignalCard } from '@/components/signal-card'
 import { CompanyForm } from '@/components/company-form'
 import { OnboardingPrompt } from '@/components/onboarding-prompt'
+import { AutoRefresh } from '@/components/auto-refresh'
 import type { Signal, DashboardStats } from '@/lib/types'
-import { TrendingUp } from 'lucide-react'
+import { TrendingUp, Network } from 'lucide-react'
 
 async function getDashboardData(userId: string) {
   const supabase = createServiceClient()
@@ -20,8 +21,7 @@ async function getDashboardData(userId: string) {
     supabase.from('users').select('preferences').eq('id', userId).single(),
   ])
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const today = new Date(); today.setHours(0, 0, 0, 0)
 
   const stats: DashboardStats = {
     total_companies:   companiesRes.data?.length ?? 0,
@@ -31,80 +31,57 @@ async function getDashboardData(userId: string) {
     digests_generated: digestsRes.data?.length ?? 0,
   }
 
-  const preferences = (userRes.data as { preferences?: { company_types?: string[] } } | null)?.preferences ?? null
+  const prefs = (userRes.data as { preferences?: { company_types?: string[] } } | null)?.preferences ?? null
 
-  return {
-    stats,
-    recentSignals: recentSignalsRes.data ?? [],
-    showOnboarding: !preferences?.company_types?.length,
-  }
+  return { stats, recentSignals: recentSignalsRes.data ?? [], showOnboarding: !prefs?.company_types?.length }
 }
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
   const { stats, recentSignals, showOnboarding } = await getDashboardData(session!.user.id)
-  const firstName = session!.user.name?.split(' ')[0]
 
   return (
     <div className="space-y-7 animate-slide-up">
-
-      {/* One-time setup prompt */}
+      <AutoRefresh intervalMs={30_000} />
       {showOnboarding && <OnboardingPrompt userId={session!.user.id} />}
 
-      {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight mb-1">
-            <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}>gm,</span>{' '}
-            <span style={{
-              background: 'linear-gradient(135deg, #ffffff, rgba(255,255,255,0.6))',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-            }}>{firstName}</span>
-          </h1>
-          <p className="text-sm" style={{ color: 'rgba(255,255,255,0.35)' }}>
-            Signal intelligence · {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          <h1 className="text-xl font-semibold" style={{ color: 'rgba(255,255,255,0.88)' }}>Signal Overview</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
         </div>
         <CompanyForm />
       </div>
 
-      {/* Stats */}
       <StatsOverview stats={stats} />
 
-      {/* Signal Feed */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4" style={{ color: 'rgba(255,255,255,0.6)' }} />
+            <TrendingUp className="w-4 h-4" style={{ color: 'rgba(255,255,255,0.5)' }} />
             <h2 className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.82)' }}>Recent Signals</h2>
             {stats.new_signals_today > 0 && (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold"
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold"
                 style={{ color: 'rgba(255,255,255,0.7)', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}>
                 {stats.new_signals_today} new
               </span>
             )}
           </div>
-          <a href="/signals" className="text-xs transition-colors"
-            style={{ color: 'rgba(255,255,255,0.3)' }}
-            onMouseEnter={undefined} onMouseLeave={undefined}>
-            View all →
-          </a>
+          <a href="/signals" className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>View all →</a>
         </div>
 
         {recentSignals.length === 0 ? (
           <div className="rounded-xl p-10 text-center"
-            style={{
-              background: 'rgba(255,255,255,0.01)',
-              border: '1px solid rgba(255,255,255,0.06)',
-            }}>
-            <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <TrendingUp className="w-6 h-6" style={{ color: 'rgba(255,255,255,0.4)' }} />
-            </div>
-            <p className="text-sm font-medium mb-1" style={{ color: 'rgba(255,255,255,0.7)' }}>No signals yet</p>
-            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>Add companies to start tracking signals.</p>
+            style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <TrendingUp className="w-6 h-6 mx-auto mb-3" style={{ color: 'rgba(255,255,255,0.25)' }} />
+            <p className="text-sm font-medium mb-1" style={{ color: 'rgba(255,255,255,0.6)' }}>No signals yet</p>
+            <p className="text-xs mb-4" style={{ color: 'rgba(255,255,255,0.3)' }}>Add companies to start tracking, or load demo data to preview the full experience.</p>
+            <a href="/companies" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all"
+              style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)' }}>
+              Get started
+            </a>
           </div>
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
@@ -116,6 +93,26 @@ export default async function DashboardPage() {
           </div>
         )}
       </div>
+
+      {stats.total_companies > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Network className="w-4 h-4" style={{ color: 'rgba(255,255,255,0.5)' }} />
+              <h2 className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.82)' }}>Company Network</h2>
+            </div>
+            <a href="/network" className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>Full view →</a>
+          </div>
+          <a href="/network" className="block rounded-xl overflow-hidden transition-all duration-200 group"
+            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', height: '160px' }}
+            onMouseEnter={undefined} onMouseLeave={undefined}>
+            <div className="h-full flex items-center justify-center gap-2" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              <Network className="w-5 h-5" />
+              <span className="text-sm">Open molecule network view</span>
+            </div>
+          </a>
+        </div>
+      )}
     </div>
   )
 }
