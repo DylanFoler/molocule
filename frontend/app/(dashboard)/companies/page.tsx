@@ -5,6 +5,7 @@ import { Building2, Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { CompanyCard } from '@/components/company-card'
 import { CompanyForm } from '@/components/company-form'
+import { LoadDemoButton } from '@/components/load-demo-button'
 import { toast } from '@/hooks/use-toast'
 import type { Company } from '@/lib/types'
 
@@ -69,18 +70,15 @@ export default function CompaniesPage() {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card p-12 text-center">
-          <div className="w-14 h-14 rounded-full bg-violet-600/10 flex items-center justify-center mx-auto mb-4">
-            <Building2 className="w-7 h-7 text-violet-400" />
-          </div>
-          <p className="text-sm font-medium text-foreground mb-2">
+        <div className="rounded-xl p-12 text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <Building2 className="w-7 h-7 mx-auto mb-3" style={{ color: 'rgba(255,255,255,0.25)' }} />
+          <p className="text-sm font-medium mb-1" style={{ color: 'rgba(255,255,255,0.6)' }}>
             {search ? 'No companies match your search' : 'No companies yet'}
           </p>
-          <p className="text-xs text-muted-foreground">
-            {search
-              ? 'Try a different search term.'
-              : 'Add your first target company to start tracking buying signals.'}
+          <p className="text-xs mb-4" style={{ color: 'rgba(255,255,255,0.3)' }}>
+            {search ? 'Try a different search term.' : 'Add your first company or load demo data to see the full experience.'}
           </p>
+          {!search && <LoadDemoButton variant="compact" />}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

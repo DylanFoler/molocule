@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react'
 import { TrendingUp, Filter } from 'lucide-react'
 import { SignalCard } from '@/components/signal-card'
-import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
 import type { Signal, SignalType } from '@/lib/types'
 import { SIGNAL_LABELS } from '@/lib/types'
 
@@ -26,13 +24,12 @@ export default function SignalsPage() {
     async function fetchSignals() {
       const params = typeFilter !== 'ALL' ? `?type=${typeFilter}` : ''
       const res = await fetch(`/api/signals${params}`)
-      if (res.ok) {
-        const data = await res.json()
-        setSignals(data)
-      }
+      if (res.ok) setSignals(await res.json())
       setLoading(false)
     }
     fetchSignals()
+    const id = setInterval(fetchSignals, 30_000)
+    return () => clearInterval(id)
   }, [typeFilter])
 
   const grouped = signals.reduce<Record<string, Signal[]>>((acc, signal) => {
@@ -44,14 +41,12 @@ export default function SignalsPage() {
 
   return (
     <div className="space-y-6 animate-slide-up">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <TrendingUp className="w-6 h-6 text-violet-400" />
+          <h1 className="text-xl font-semibold" style={{ color: 'rgba(255,255,255,0.88)' }}>
             Signal Feed
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
             {signals.length} signals detected across all companies
           </p>
         </div>
@@ -59,38 +54,37 @@ export default function SignalsPage() {
 
       {/* Type filter */}
       <div className="flex items-center gap-2 flex-wrap">
-        <Filter className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-        {FILTER_TYPES.map(({ value, label }) => (
-          <Button
-            key={value}
-            variant={typeFilter === value ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setTypeFilter(value)}
-            className={cn(
-              'h-7 text-xs rounded-full',
-              typeFilter === value ? '' : 'border-border text-muted-foreground'
-            )}
-          >
-            {label}
-          </Button>
-        ))}
+        <Filter className="w-4 h-4 flex-shrink-0" style={{ color: 'rgba(255,255,255,0.35)' }} />
+        {FILTER_TYPES.map(({ value, label }) => {
+          const active = typeFilter === value
+          return (
+            <button key={value} onClick={() => setTypeFilter(value)}
+              className="h-7 px-3 text-xs rounded-full transition-all duration-150"
+              style={{
+                background: active ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)',
+                border: active ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(255,255,255,0.07)',
+                color: active ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)',
+              }}>
+              {label}
+            </button>
+          )
+        })}
       </div>
 
-      {/* Signal timeline */}
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-24 rounded-xl border border-border bg-card animate-pulse" />
+            <div key={i} className="h-24 rounded-xl animate-pulse"
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }} />
           ))}
         </div>
       ) : signals.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card p-12 text-center">
-          <div className="w-14 h-14 rounded-full bg-violet-600/10 flex items-center justify-center mx-auto mb-4">
-            <TrendingUp className="w-7 h-7 text-violet-400" />
-          </div>
-          <p className="text-sm font-medium text-foreground mb-2">No signals found</p>
-          <p className="text-xs text-muted-foreground">
-            Signals appear here after nightly scans detect changes for your tracked companies.
+        <div className="rounded-xl p-12 text-center"
+          style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <TrendingUp className="w-7 h-7 mx-auto mb-3" style={{ color: 'rgba(255,255,255,0.25)' }} />
+          <p className="text-sm font-medium mb-1" style={{ color: 'rgba(255,255,255,0.6)' }}>No signals found</p>
+          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+            Add companies or load demo data to see signals here.
           </p>
         </div>
       ) : (
@@ -98,11 +92,12 @@ export default function SignalsPage() {
           {Object.entries(grouped).map(([date, daySignals]) => (
             <div key={date}>
               <div className="flex items-center gap-3 mb-3">
-                <div className="h-px bg-border flex-1" />
-                <span className="text-xs text-muted-foreground font-medium px-2 py-1 rounded-full bg-secondary">
+                <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                <span className="text-[10px] font-medium px-2 py-1 rounded-full"
+                  style={{ color: 'rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
                   {new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                 </span>
-                <div className="h-px bg-border flex-1" />
+                <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.06)' }} />
               </div>
               <div className="grid gap-3 md:grid-cols-2">
                 {daySignals.map((signal) => (
