@@ -12,16 +12,9 @@ export async function getRepoPRs(
   token?: string
 ): Promise<PullRequest[]> {
   const octokit = getOctokit(token)
-
   const { data } = await octokit.pulls.list({
-    owner,
-    repo,
-    state: 'all',
-    sort: 'updated',
-    direction: 'desc',
-    per_page: 50,
+    owner, repo, state: 'all', sort: 'updated', direction: 'desc', per_page: 50,
   })
-
   return data
     .filter((pr) => new Date(pr.updated_at) >= since)
     .map((pr) => ({
@@ -45,14 +38,10 @@ export async function getWorkflowRuns(
   token?: string
 ): Promise<WorkflowRun[]> {
   const octokit = getOctokit(token)
-
   const { data } = await octokit.actions.listWorkflowRunsForRepo({
-    owner,
-    repo,
-    per_page: 30,
+    owner, repo, per_page: 30,
     created: `>=${since.toISOString().split('T')[0]}`,
   })
-
   return data.workflow_runs.map((run) => ({
     id:         run.id,
     name:       run.name ?? run.workflow_id.toString(),
@@ -63,83 +52,21 @@ export async function getWorkflowRuns(
   }))
 }
 
-export async function getUserRepos(token: string): Promise<
-  Array<{ id: number; full_name: string; owner: string; name: string; private: boolean }>
-> {
+export async function getUserRepos(token: string) {
   const octokit = getOctokit(token)
   const { data } = await octokit.repos.listForAuthenticatedUser({
-    sort: 'updated',
-    per_page: 100,
-    type: 'all',
+    sort: 'updated', per_page: 100, type: 'all',
   })
   return data.map((repo) => ({
-    id:        repo.id,
-    full_name: repo.full_name,
-    owner:     repo.owner.login,
-    name:      repo.name,
-    private:   repo.private,
+    id: repo.id, full_name: repo.full_name,
+    owner: repo.owner.login, name: repo.name, private: repo.private,
   }))
 }
 
 export async function getContributors(
-  _owner: string,
-  _repo: string,
-  prs: PullRequest[]
+  _owner: string, _repo: string, prs: PullRequest[]
 ): Promise<string[]> {
   return Array.from(new Set(prs.map((pr) => pr.author).filter(Boolean))).slice(0, 10)
-}
-
-export async function getPRDetails(
-  owner: string,
-  repo: string,
-  prNumber: number,
-  token?: string
-): Promise<{ additions: number; deletions: number }> {
-  try {
-    const octokit = getOctokit(token)
-    const { data } = await octokit.pulls.get({ owner, repo, pull_number: prNumber })
-    return { additions: data.additions, deletions: data.deletions }
-  } catch {
-    return { additions: 0, deletions: 0 }
-  }
-}
-
-export async function getFirstReviewTime(
-  owner: string,
-  repo: string,
-  prNumber: number,
-  token?: string
-): Promise<string | null> {
-  try {
-    const octokit = getOctokit(token)
-    const { data } = await octokit.pulls.listReviews({ owner, repo, pull_number: prNumber, per_page: 10 })
-    const first = data.find((r) => r.submitted_at)
-    return first?.submitted_at ?? null
-  } catch {
-    return null
-  }
-}
-
-export async function getFailedJobNames(
-  owner: string,
-  repo: string,
-  runId: number,
-  token?: string
-): Promise<string[]> {
-  try {
-    const octokit = getOctokit(token)
-    const { data } = await octokit.actions.listJobsForWorkflowRun({
-      owner,
-      repo,
-      run_id: runId,
-      per_page: 30,
-    })
-    return data.jobs
-      .filter((j) => j.conclusion === 'failure')
-      .map((j) => j.name)
-  } catch {
-    return []
-  }
 }
 
 export function classifyPRSize(additions: number, deletions: number): 'xs' | 's' | 'm' | 'l' {
@@ -158,6 +85,8 @@ export interface DigestMetrics {
   failed_job_names: string[]
 }
 
+// Computes metrics from data we already fetched — no extra API calls per PR.
+// Failed job names require one call per failed run (capped at 3).
 export async function computeDigestMetrics(
   prs: PullRequest[],
   workflowRuns: WorkflowRun[],
@@ -165,63 +94,48 @@ export async function computeDigestMetrics(
   repo: string,
   token?: string
 ): Promise<DigestMetrics> {
-  const mergedPRs = prs.filter((p) => p.state === 'merged' && p.merged_at).slice(0, 20)
+  // Cycle time: merged_at - created_at (already have this data)
+  const cycleTimes = prs
+    .filter((p) => p.state === 'merged' && p.merged_at && p.created_at)
+    .map((p) => (new Date(p.merged_at!).getTime() - new Date(p.created_at).getTime()) / 3_600_000)
+    .filter((h) => h >= 0)
+
+  // Stale: open PRs with no activity in 7+ days
   const staleThreshold = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
   const stale_pr_count = prs.filter(
     (p) => p.state === 'open' && p.updated_at && new Date(p.updated_at) < staleThreshold
   ).length
 
-  // Fetch PR details and first review times in parallel, batched at 5 at a time
-  const sizeBuckets = { xs: 0, s: 0, m: 0, l: 0 }
-  const cycleTimes: number[] = []
-  const reviewTimes: number[] = []
-
-  for (let i = 0; i < mergedPRs.length; i += 5) {
-    const batch = mergedPRs.slice(i, i + 5)
-    const results = await Promise.allSettled(
-      batch.map(async (pr) => {
-        const [details, firstReview] = await Promise.allSettled([
-          getPRDetails(owner, repo, pr.number, token),
-          getFirstReviewTime(owner, repo, pr.number, token),
-        ])
-
-        if (details.status === 'fulfilled') {
-          const { additions, deletions } = details.value
-          const bucket = classifyPRSize(additions, deletions)
-          sizeBuckets[bucket]++
-        }
-
-        if (pr.merged_at && pr.created_at) {
-          const hours = (new Date(pr.merged_at).getTime() - new Date(pr.created_at).getTime()) / 3_600_000
-          if (hours >= 0) cycleTimes.push(hours)
-        }
-
-        if (firstReview.status === 'fulfilled' && firstReview.value && pr.created_at) {
-          const hours = (new Date(firstReview.value).getTime() - new Date(pr.created_at).getTime()) / 3_600_000
-          if (hours >= 0) reviewTimes.push(hours)
-        }
-      })
-    )
-    // results intentionally unused - side effects collected above
-    void results
-  }
-
-  // Fetch failed job names for up to 5 failed runs
-  const failedRuns = workflowRuns.filter((r) => r.conclusion === 'failure').slice(0, 5)
-  const jobNameArrays = await Promise.allSettled(
+  // Failed job names: max 3 runs, one API call each
+  const failedRuns = workflowRuns.filter((r) => r.conclusion === 'failure').slice(0, 3)
+  const jobResults = await Promise.allSettled(
     failedRuns.map((r) => getFailedJobNames(owner, repo, r.id, token))
   )
   const failed_job_names = Array.from(new Set(
-    jobNameArrays.flatMap((r) => (r.status === 'fulfilled' ? r.value : []))
+    jobResults.flatMap((r) => (r.status === 'fulfilled' ? r.value : []))
   ))
 
   const avg = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null
 
   return {
     avg_cycle_time_hours:  avg(cycleTimes),
-    avg_review_time_hours: avg(reviewTimes),
-    pr_size_distribution:  sizeBuckets,
+    avg_review_time_hours: null, // requires per-PR API calls — skipped to avoid timeout
+    pr_size_distribution:  { xs: 0, s: 0, m: 0, l: 0 }, // requires per-PR API calls — skipped
     stale_pr_count,
     failed_job_names,
+  }
+}
+
+async function getFailedJobNames(
+  owner: string, repo: string, runId: number, token?: string
+): Promise<string[]> {
+  try {
+    const octokit = getOctokit(token)
+    const { data } = await octokit.actions.listJobsForWorkflowRun({
+      owner, repo, run_id: runId, per_page: 30,
+    })
+    return data.jobs.filter((j) => j.conclusion === 'failure').map((j) => j.name)
+  } catch {
+    return []
   }
 }
