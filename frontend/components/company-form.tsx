@@ -61,7 +61,7 @@ export function CompanyForm({ onSuccess }: CompanyFormProps) {
       setForm({
         name:         data.name,
         website:      data.website,
-        linkedin_url: '',
+        linkedin_url: data.linkedin_url ?? '',
         github_org:   data.github_org ?? '',
         blog_rss_url: data.blog_rss_url ?? '',
       })
@@ -165,20 +165,34 @@ export function CompanyForm({ onSuccess }: CompanyFormProps) {
         {/* Phase: confirm */}
         {phase === 'confirm' && (
           <div className="space-y-4 mt-2">
-            {/* Favicon + description preview */}
+            {/* Enriched preview card */}
             {enriched && (
-              <div className="flex items-start gap-3 p-3 rounded-lg"
-                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                {enriched.favicon_url && (
-                  <img src={enriched.favicon_url} alt="" className="w-8 h-8 rounded-lg object-contain"
-                    style={{ border: '1px solid rgba(255,255,255,0.07)' }}
-                    onError={e => ((e.target as HTMLImageElement).style.display = 'none')} />
-                )}
-                {enriched.description && (
-                  <p className="text-[11px] leading-relaxed line-clamp-2"
-                    style={{ color: 'rgba(255,255,255,0.45)' }}>
-                    {enriched.description}
-                  </p>
+              <div className="space-y-2">
+                {/* Favicon + description */}
+                <div className="flex items-start gap-3 p-3 rounded-lg"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  {enriched.favicon_url && (
+                    <img src={enriched.favicon_url} alt="" className="w-8 h-8 rounded-lg object-contain flex-shrink-0"
+                      style={{ border: '1px solid rgba(255,255,255,0.07)' }}
+                      onError={e => ((e.target as HTMLImageElement).style.display = 'none')} />
+                  )}
+                  {enriched.description && (
+                    <p className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                      {enriched.description}
+                    </p>
+                  )}
+                </div>
+
+                {/* Watch for */}
+                {enriched.watch_for && (
+                  <div className="flex items-start gap-2 px-3 py-2 rounded-lg"
+                    style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <span className="text-[10px] font-semibold uppercase tracking-widest flex-shrink-0 mt-px"
+                      style={{ color: 'rgba(255,255,255,0.3)' }}>Watch</span>
+                    <p className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                      {enriched.watch_for}
+                    </p>
+                  </div>
                 )}
               </div>
             )}

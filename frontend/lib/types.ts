@@ -16,8 +16,10 @@ export interface CompanyEnrichment {
   website: string
   description: string | null
   github_org: string | null
+  linkedin_url: string | null
   blog_rss_url: string | null
   favicon_url: string | null
+  watch_for: string | null
 }
 
 export interface Company {
