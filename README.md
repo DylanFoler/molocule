@@ -1,4 +1,4 @@
-# Molocule
+# molocule
 
 > Signal Tracker + GitHub PR Auto-Summarizer
 
