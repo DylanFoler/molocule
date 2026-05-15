@@ -137,6 +137,7 @@ export default function CompaniesPage() {
               company={company}
               onDelete={handleDelete}
               signalTypes={signalTypesByCompany.get(company.id)}
+              onScanComplete={fetchData}
             />
           ))}
         </div>

@@ -12,10 +12,11 @@ const TYPE_COLORS: Record<string, string> = {
   LAYOFF: '#f87171', PRODUCT_LAUNCH: '#fbbf24', GENERAL: 'rgba(255,255,255,0.4)',
 }
 
-export function CompanyCard({ company, onDelete, signalTypes }: {
+export function CompanyCard({ company, onDelete, signalTypes, onScanComplete }: {
   company: Company
   onDelete?: (id: string) => void
   signalTypes?: SignalType[]
+  onScanComplete?: () => void
 }) {
   const router = useRouter()
   const [scanning, setScanning] = useState(false)
@@ -33,7 +34,7 @@ export function CompanyCard({ company, onDelete, signalTypes }: {
         title: found > 0 ? `${found} new signal${found > 1 ? 's' : ''}` : 'No new signals',
         description: found > 0 ? `Fresh signals for ${company.name}.` : `Nothing new in the last 7 days.`,
       })
-      router.refresh()
+      onScanComplete ? onScanComplete() : router.refresh()
     } catch {
       toast({ title: 'Scan failed', variant: 'destructive' })
     } finally {
