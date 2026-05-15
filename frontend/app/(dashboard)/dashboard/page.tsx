@@ -8,6 +8,7 @@ import { OnboardingPrompt } from '@/components/onboarding-prompt'
 import { AutoRefresh } from '@/components/auto-refresh'
 import type { Signal, DashboardStats } from '@/lib/types'
 import { TrendingUp, Network } from 'lucide-react'
+import { PageHeader } from '@/components/page-header'
 
 async function getDashboardData(userId: string) {
   const supabase = createServiceClient()
@@ -45,15 +46,11 @@ export default async function DashboardPage() {
       <AutoRefresh intervalMs={30_000} />
       {showOnboarding && <OnboardingPrompt userId={session!.user.id} />}
 
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-semibold" style={{ color: 'rgba(255,255,255,0.88)' }}>Signal Overview</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-          </p>
-        </div>
-        <CompanyForm />
-      </div>
+      <PageHeader
+        title="Signal Overview"
+        subtitle={new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+        right={<CompanyForm />}
+      />
 
       <StatsOverview stats={stats} />
 

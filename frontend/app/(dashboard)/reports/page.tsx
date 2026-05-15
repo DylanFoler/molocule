@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { GitPullRequest, Plus, Loader2, RefreshCw, Github } from 'lucide-react'
 import { ReportCard } from '@/components/report-card'
+import { PageHeader } from '@/components/page-header'
 import { LoadDemoButton } from '@/components/load-demo-button'
 import { toast } from '@/hooks/use-toast'
 import type { Digest, Repo } from '@/lib/types'
@@ -77,22 +78,19 @@ export default function ReportsPage() {
   return (
     <div className="space-y-6 animate-slide-up">
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold" style={{ color: 'rgba(255,255,255,0.88)' }}>Dev Digest</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
-            Auto-generated PR summaries and engineering reports
-          </p>
-        </div>
-        <button onClick={fetchAvailable} disabled={connecting}
-          className={btn.base} style={btn.muted}
-          onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.9)')}
-          onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.55)')}>
-          {connecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-          Connect Repo
-        </button>
-      </div>
+      <PageHeader
+        title="Dev Digest"
+        subtitle="Auto-generated PR summaries and engineering reports"
+        right={
+          <button onClick={fetchAvailable} disabled={connecting}
+            className={btn.base} style={btn.muted}
+            onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.9)')}
+            onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.55)')}>
+            {connecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+            Connect Repo
+          </button>
+        }
+      />
 
       {/* Repo picker */}
       {showPicker && (
