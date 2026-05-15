@@ -5,6 +5,7 @@ import { StatsOverview } from '@/components/stats-overview'
 import { SignalCard } from '@/components/signal-card'
 import { CompanyForm } from '@/components/company-form'
 import { OnboardingPrompt } from '@/components/onboarding-prompt'
+import { AutoRefresh } from '@/components/auto-refresh'
 import type { Signal, DashboardStats } from '@/lib/types'
 import { TrendingUp } from 'lucide-react'
 
@@ -46,6 +47,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-7 animate-slide-up">
+      <AutoRefresh intervalMs={30_000} />
 
       {/* One-time setup prompt */}
       {showOnboarding && <OnboardingPrompt userId={session!.user.id} />}

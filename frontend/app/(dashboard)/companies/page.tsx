@@ -22,7 +22,11 @@ export default function CompaniesPage() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetchCompanies() }, [fetchCompanies])
+  useEffect(() => {
+    fetchCompanies()
+    const id = setInterval(fetchCompanies, 30_000)
+    return () => clearInterval(id)
+  }, [fetchCompanies])
 
   async function handleDelete(id: string) {
     const res = await fetch(`/api/companies?id=${id}`, { method: 'DELETE' })

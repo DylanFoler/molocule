@@ -26,13 +26,12 @@ export default function SignalsPage() {
     async function fetchSignals() {
       const params = typeFilter !== 'ALL' ? `?type=${typeFilter}` : ''
       const res = await fetch(`/api/signals${params}`)
-      if (res.ok) {
-        const data = await res.json()
-        setSignals(data)
-      }
+      if (res.ok) setSignals(await res.json())
       setLoading(false)
     }
     fetchSignals()
+    const id = setInterval(fetchSignals, 30_000)
+    return () => clearInterval(id)
   }, [typeFilter])
 
   const grouped = signals.reduce<Record<string, Signal[]>>((acc, signal) => {
