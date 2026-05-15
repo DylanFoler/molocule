@@ -1,0 +1,43 @@
+name: Nightly Signal Scanner
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 06:00 UTC daily
+  workflow_dispatch:        # allow manual trigger
+
+jobs:
+  scan:
+    name: Scan buying signals
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Trigger signal scan
+        run: |
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            "${{ secrets.NEXT_PUBLIC_URL }}/api/cron/scan" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json")
+
+          body=$(echo "$response" | head -n -1)
+          status=$(echo "$response" | tail -n 1)
+
+          echo "Status: $status"
+          echo "Response: $body"
+
+          if [ "$status" != "200" ]; then
+            echo "Signal scan failed with status $status"
+            exit 1
+          fi
+
+          scanned=$(echo "$body" | python3 -c "import sys, json; print(json.load(sys.stdin).get('scanned', 0))")
+          echo "Scanned $scanned companies"
+
+      - name: Send Slack summary (optional)
+        if: success() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -s -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{"text": ":zap: Molocule nightly scan complete — check your dashboard for new signals."}'

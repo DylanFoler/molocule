@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String    @id
+  email               String    @unique
+  name                String?
+  image               String?
+  githubAccessToken   String?   @map("github_access_token")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  companies           Company[]
+  repos               Repo[]
+  notification        Notification?
+
+  @@map("users")
+}
+
+model Company {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  website     String
+  linkedinUrl String?  @map("linkedin_url")
+  githubOrg   String?  @map("github_org")
+  blogRssUrl  String?  @map("blog_rss_url")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  signals     Signal[]
+
+  @@index([userId])
+  @@map("companies")
+}
+
+model Signal {
+  id         String     @id @default(cuid())
+  companyId  String     @map("company_id")
+  company    Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  type       SignalType
+  title      String
+  url        String?
+  summary    String?
+  llmInsight String?    @map("llm_insight")
+  isNew      Boolean    @default(true) @map("is_new")
+  detectedAt DateTime   @default(now()) @map("detected_at")
+  createdAt  DateTime   @default(now()) @map("created_at")
+
+  @@index([companyId])
+  @@index([type])
+  @@index([detectedAt])
+  @@map("signals")
+}
+
+model Repo {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  githubRepoId String   @unique @map("github_repo_id")
+  owner        String
+  name         String
+  fullName     String   @map("full_name")
+  connectedAt  DateTime @default(now()) @map("connected_at")
+  digests      Digest[]
+
+  @@index([userId])
+  @@map("repos")
+}
+
+model Digest {
+  id           String   @id @default(cuid())
+  repoId       String   @map("repo_id")
+  repo         Repo     @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  periodStart  DateTime @map("period_start")
+  periodEnd    DateTime @map("period_end")
+  summary      String
+  prCount      Int      @default(0) @map("pr_count")
+  mergedCount  Int      @default(0) @map("merged_count")
+  openCount    Int      @default(0) @map("open_count")
+  rawData      Json     @map("raw_data")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([repoId])
+  @@map("digests")
+}
+
+model Notification {
+  id               String   @id @default(cuid())
+  userId           String   @unique @map("user_id")
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slackWebhookUrl  String?  @map("slack_webhook_url")
+  email            String?
+  digestFrequency  String   @default("daily") @map("digest_frequency")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("notifications")
+}
+
+enum SignalType {
+  FUNDING
+  KEY_HIRE
+  LAYOFF
+  PRODUCT_LAUNCH
+  GENERAL
+}
