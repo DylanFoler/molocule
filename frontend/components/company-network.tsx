@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import type { Company, Signal } from '@/lib/types'
 import { getFaviconUrl } from '@/lib/utils'
 
@@ -200,7 +201,8 @@ function computeEdges(companies: Company[], signals: Signal[]): Edge[] {
   return edges
 }
 
-export function CompanyNetwork({ companies, signals }: { companies: Company[]; signals: Signal[] }) {
+export function CompanyNetwork({ companies, signals, enableNavigation = true }: { companies: Company[]; signals: Signal[]; enableNavigation?: boolean }) {
+  const router     = useRouter()
   const canvasRef  = useRef<HTMLCanvasElement>(null)
   const nodesRef   = useRef<Node[]>([])
   const edgesRef   = useRef<Edge[]>([])
@@ -367,6 +369,9 @@ export function CompanyNetwork({ companies, signals }: { companies: Company[]; s
     if(!wasDrag){
       const node=nodeAt(w.x,w.y); const edge=!node?edgeAt(w.x,w.y):null
       if(node){
+        // Single-click: navigate to focused subgraph view
+        if(enableNavigation){ router.push(`/network/${node.id}`); return }
+        // Navigation disabled (on the focused page itself): show panel
         const same=focusRef.current===node.id; focusRef.current=same?null:node.id
         const connected=edgesRef.current.filter(e=>e.source===node.id||e.target===node.id)
         setInfoPanel(same?null:{

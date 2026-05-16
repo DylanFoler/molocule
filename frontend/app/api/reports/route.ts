@@ -11,10 +11,20 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const supabase = createServiceClient()
+
+  // Fetch user repo IDs first to avoid brittle join-filter syntax
+  const { data: userRepos } = await supabase
+    .from('repos')
+    .select('id')
+    .eq('user_id', session.user.id)
+
+  const repoIds = (userRepos ?? []).map(r => r.id)
+  if (repoIds.length === 0) return NextResponse.json([])
+
   const { data, error } = await supabase
     .from('digests')
-    .select('*, repo:repos!inner(*)')
-    .eq('repos.user_id', session.user.id)
+    .select('*, repo:repos(*)')
+    .in('repo_id', repoIds)
     .order('created_at', { ascending: false })
     .limit(20)
 

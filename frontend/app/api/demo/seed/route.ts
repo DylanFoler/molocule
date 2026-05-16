@@ -197,62 +197,34 @@ export async function POST() {
   const { data: repos } = await supabase.from('repos').insert(repoInserts).select()
   const repoByName = Object.fromEntries((repos ?? []).map(r => [r.name, r.id]))
 
-  // Insert digests for each repo
-  const digests = [
-    // molocule — this week
-    {
-      repo_id: repoByName['molocule'], period_start: ago(7), period_end: ago(0),
-      summary: 'Outstanding week: 9 PRs merged covering the molecular network graph, instant signal scanning, and full design overhaul. One lint failure on day 3 resolved within the hour. Zero stale PRs. Team velocity is at its highest point this quarter.',
-      pr_count: 10, merged_count: 9, open_count: 1,
-      raw_data: MOLOCULE_THIS_WEEK,
-      avg_cycle_time_hours: 36, avg_review_time_hours: null,
-      pr_size_distribution: { xs: 2, s: 4, m: 3, l: 1 }, stale_pr_count: 0, failed_job_names: ['lint'],
-      release_notes: '## Features\n- Force-directed molecular network graph\n- Instant signal scanning on company add\n- Company auto-enrichment from URL\n- Monochrome black redesign with molecule logo\n\n## Bug Fixes\n- Digest generation timeout resolved\n- Server component event handler error fixed\n\n## Chores\n- Removed GTM references\n- Upgraded Next.js to v16',
-    },
-    // molocule — last week
-    {
-      repo_id: repoByName['molocule'], period_start: ago(14), period_end: ago(7),
-      summary: '6 PRs merged last week with a full design overhaul as the centerpiece. All CI pipelines green. The geometric canvas background and PDF export shipped cleanly. Contributor is maintaining a steady 11-hour average cycle time.',
-      pr_count: 6, merged_count: 6, open_count: 0,
-      raw_data: MOLOCULE_LAST_WEEK,
-      avg_cycle_time_hours: 11, avg_review_time_hours: null,
-      pr_size_distribution: { xs: 1, s: 3, m: 2, l: 0 }, stale_pr_count: 0, failed_job_names: [],
-      release_notes: '## Features\n- Monochrome black design system\n- Geometric canvas animation\n- PR size distribution in digest\n- Contributor table with merge rates\n- PDF export for all digest sections\n\n## Bug Fixes\n- Stats card hover handler error fixed',
-    },
-    // signal-api — this week
-    {
-      repo_id: repoByName['signal-api'], period_start: ago(7), period_end: ago(0),
-      summary: '4 PRs merged this week but 2 CI failures on the test suite need attention. Two PRs are open and aging — the Google News timeout fix has been in review for 8 days. sarah-dev is blocked. Recommend a focused debug session on the test failures before the next deploy.',
-      pr_count: 6, merged_count: 4, open_count: 2,
-      raw_data: API_THIS_WEEK,
-      avg_cycle_time_hours: 72, avg_review_time_hours: null,
-      pr_size_distribution: { xs: 1, s: 2, m: 1, l: 0 }, stale_pr_count: 2, failed_job_names: ['unit-tests', 'integration-tests'],
-      release_notes: '## Features\n- Rate limiting on scan endpoints\n- Cron digest for all users\n\n## Bug Fixes\n- Supabase RLS policy fixed for shared reads\n\n## Chores\n- Anthropic SDK bumped to 0.32',
-    },
-    // signal-api — last week
-    {
-      repo_id: repoByName['signal-api'], period_start: ago(14), period_end: ago(7),
-      summary: 'Productive week with 7 PRs merged, all CI passing. The HN Algolia integration and per-company scan endpoint shipped cleanly. sarah-dev contributed 3 of the 7 merges. The scanner refactor sets a strong foundation for the rate-limiting work next sprint.',
-      pr_count: 7, merged_count: 7, open_count: 0,
-      raw_data: API_LAST_WEEK,
-      avg_cycle_time_hours: 24, avg_review_time_hours: null,
-      pr_size_distribution: { xs: 3, s: 3, m: 1, l: 0 }, stale_pr_count: 0, failed_job_names: [],
-      release_notes: '## Features\n- HN Algolia integration for signal scanning\n- Per-company auth-gated scan endpoint\n- Quality filter requires company name in title\n\n## Bug Fixes\n- FUNDING classifier no longer matches scam articles\n- RSS parser fixed for CDATA-wrapped content\n\n## Chores\n- Scanner extracted to shared lib module\n- Integration tests added',
-    },
-    // landing — this week (fast, solo, tiny PRs)
-    {
-      repo_id: repoByName['landing'], period_start: ago(7), period_end: ago(0),
-      summary: '12 PRs merged this week as the landing page came together. Average cycle time of 6 hours reflects fast solo iterations. All deploys passed. Demo page, pricing, waitlist capture, and testimonials all shipped. Ready for public launch.',
-      pr_count: 12, merged_count: 12, open_count: 0,
-      raw_data: LANDING_THIS_WEEK,
-      avg_cycle_time_hours: 6, avg_review_time_hours: null,
-      pr_size_distribution: { xs: 5, s: 5, m: 2, l: 0 }, stale_pr_count: 0, failed_job_names: [],
-      release_notes: '## Features\n- Demo page with interactive company graph\n- Pricing page with three tiers\n- Testimonials section with logos\n- Waitlist email capture form\n- Feature comparison table\n\n## Chores\n- Switched from npm to pnpm\n- Added Plausible analytics',
-    },
-  ].filter(d => d.repo_id) // skip any repo that failed to insert
+  // Base digest records — only columns guaranteed to exist in every schema
+  const baseDigests = [
+    { repo_id: repoByName['molocule'],   period_start: ago(7),  period_end: ago(0),  pr_count: 10, merged_count: 9,  open_count: 1, raw_data: MOLOCULE_THIS_WEEK,  summary: 'Outstanding week: 9 PRs merged covering the molecular network graph, instant signal scanning, and full design overhaul. One lint failure on day 3 resolved within the hour. Zero stale PRs. Team velocity is at its highest point this quarter.' },
+    { repo_id: repoByName['molocule'],   period_start: ago(14), period_end: ago(7),  pr_count: 6,  merged_count: 6,  open_count: 0, raw_data: MOLOCULE_LAST_WEEK, summary: '6 PRs merged last week with a full design overhaul as the centerpiece. All CI pipelines green. Contributor is maintaining a steady 11-hour average cycle time.' },
+    { repo_id: repoByName['signal-api'], period_start: ago(7),  period_end: ago(0),  pr_count: 6,  merged_count: 4,  open_count: 2, raw_data: API_THIS_WEEK,       summary: '4 PRs merged this week but 2 CI failures on the test suite need attention. Two PRs are open and aging. Recommend a focused debug session before the next deploy.' },
+    { repo_id: repoByName['signal-api'], period_start: ago(14), period_end: ago(7),  pr_count: 7,  merged_count: 7,  open_count: 0, raw_data: API_LAST_WEEK,        summary: 'Productive week with 7 PRs merged, all CI passing. The HN Algolia integration and per-company scan endpoint shipped cleanly with two contributors.' },
+    { repo_id: repoByName['landing'],    period_start: ago(7),  period_end: ago(0),  pr_count: 12, merged_count: 12, open_count: 0, raw_data: LANDING_THIS_WEEK,    summary: '12 PRs merged this week as the landing page came together. Average cycle time of 6 hours. All deploys passed. Ready for public launch.' },
+  ].filter(d => d.repo_id)
 
-  const { error: digestErr } = await supabase.from('digests').insert(digests)
-  if (digestErr) console.warn('Digest insert warning:', digestErr.message)
+  // Try inserting with extended metric columns; fall back to base if migration not run
+  const extended = baseDigests.map(d => ({
+    ...d,
+    avg_cycle_time_hours:  [36, 11, 72, 24, 6][baseDigests.indexOf(d)] ?? null,
+    avg_review_time_hours: null,
+    pr_size_distribution:  [{xs:2,s:4,m:3,l:1},{xs:1,s:3,m:2,l:0},{xs:1,s:2,m:1,l:0},{xs:3,s:3,m:1,l:0},{xs:5,s:5,m:2,l:0}][baseDigests.indexOf(d)],
+    stale_pr_count:        [0, 0, 2, 0, 0][baseDigests.indexOf(d)] ?? 0,
+    failed_job_names:      [['lint'],[],[`unit-tests`,`integration-tests`],[],[]][baseDigests.indexOf(d)] ?? [],
+    release_notes:         null,
+  }))
+
+  let { error: digestErr } = await supabase.from('digests').insert(extended)
+  if (digestErr?.message.includes('column')) {
+    // Extended columns not migrated yet — insert with base only
+    const { error: baseErr } = await supabase.from('digests').insert(baseDigests)
+    if (baseErr) console.warn('Digest insert warning:', baseErr.message)
+  } else if (digestErr) {
+    console.warn('Digest insert warning:', digestErr.message)
+  }
 
   // Dismiss onboarding
   await supabase.from('users')
@@ -264,7 +236,7 @@ export async function POST() {
     companies: companies.length,
     signals: signals.length,
     repos: repos?.length ?? 0,
-    digests: digests.length,
+    digests: baseDigests.length,
   })
 }
 

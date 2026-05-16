@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ExternalLink, Github, Linkedin, RefreshCw } from 'lucide-react'
 import { getFaviconUrl, getDomain, timeAgo } from '@/lib/utils'
@@ -44,8 +43,10 @@ export function CompanyCard({ company, onDelete, signalTypes, onScanComplete }: 
   }
 
   return (
-    <Link href={`/companies/${company.id}`}
-      className="relative rounded-2xl overflow-hidden group transition-all duration-300 block"
+    <div onClick={() => router.push(`/companies/${company.id}`)}
+      role="button" tabIndex={0}
+      onKeyDown={e => e.key === 'Enter' && router.push(`/companies/${company.id}`)}
+      className="relative rounded-2xl overflow-hidden group transition-all duration-300 block cursor-pointer"
       style={{
         background: 'rgba(255,255,255,0.02)',
         border: '1px solid rgba(255,255,255,0.07)',
@@ -194,6 +195,6 @@ export function CompanyCard({ company, onDelete, signalTypes, onScanComplete }: 
           </p>
         )}
       </div>
-    </Link>
+    </div>
   )
 }
