@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
-import { CompanyNetwork } from '@/components/company-network'
+import { CompanyNetwork, getConnectedIds } from '@/components/company-network'
 import { SignalCard } from '@/components/signal-card'
 import { getFaviconUrl, getDomain } from '@/lib/utils'
 import { getCached, setCached } from '@/lib/page-cache'
@@ -32,30 +32,17 @@ export default function FocusedNetworkPage({ params }: { params: Promise<{ id: s
 
   const focal = allCompanies.find(c => c.id === id)
 
-  // Determine which companies are connected to this one using the same
-  // industry/rival/mention logic the graph uses, just keep companies
-  // that share at least one connection type with the focal node
+  // Use the exact same edge logic as the main network graph
+  const connectedIds = getConnectedIds(id, allCompanies, allSignals)
+  const connected = allCompanies.filter(c => c.id !== id && connectedIds.has(c.id))
+
+  // Signals for the focal company (for type counts and cross-mention display)
   const sigsByCompany = new Map<string, Signal[]>()
   for (const s of allSignals) {
     if (!sigsByCompany.has(s.company_id)) sigsByCompany.set(s.company_id, [])
     sigsByCompany.get(s.company_id)!.push(s)
   }
-
   const focalSigs = sigsByCompany.get(id) ?? []
-  const focalTypes = new Set(focalSigs.map(s => s.type))
-
-  const connected = allCompanies.filter(c => {
-    if (c.id === id) return false
-    const otherSigs = sigsByCompany.get(c.id) ?? []
-    const otherTypes = new Set(otherSigs.map(s => s.type))
-    // Shares a signal type
-    if ([...focalTypes].some(t => otherTypes.has(t))) return true
-    // Mention detection: focal's signals mention this company
-    if (focalSigs.some(s => (s.title + (s.summary ?? '')).toLowerCase().includes(c.name.toLowerCase()))) return true
-    // This company's signals mention the focal
-    if (focal && otherSigs.some(s => (s.title + (s.summary ?? '')).toLowerCase().includes(focal.name.toLowerCase()))) return true
-    return false
-  })
 
   // Subgraph = focal + all connected companies
   const subgraphCompanies = focal ? [focal, ...connected] : []

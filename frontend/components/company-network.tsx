@@ -245,6 +245,18 @@ function detectMarketPressure(sigsA: Signal[], companyA: Company, sigsB: Signal[
 }
 
 // ── Main edge computation ──────────────────────────────────────────────────
+// Exported so focused network pages can determine real graph connections
+// without duplicating the edge-computation logic.
+export function getConnectedIds(focalId: string, companies: Company[], signals: Signal[]): Set<string> {
+  const edges = computeEdges(companies, signals)
+  const ids = new Set<string>()
+  for (const e of edges) {
+    if (e.source === focalId) ids.add(e.target)
+    if (e.target === focalId) ids.add(e.source)
+  }
+  return ids
+}
+
 function computeEdges(companies: Company[], signals: Signal[]): Edge[] {
   const edges: Edge[] = []
   const sigsByCompany = new Map<string, Signal[]>()

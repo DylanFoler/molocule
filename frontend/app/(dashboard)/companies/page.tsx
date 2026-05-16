@@ -130,7 +130,7 @@ export default function CompaniesPage() {
           <p className="text-xs mb-4" style={{ color: 'rgba(255,255,255,0.3)' }}>
             {search ? 'Try a different term.' : 'Track a company or load demo data to see the full experience.'}
           </p>
-          {!search && <LoadDemoButton variant="compact" />}
+          {!search && <LoadDemoButton variant="compact" onLoad={fetchData} />}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

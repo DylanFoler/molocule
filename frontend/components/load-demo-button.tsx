@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Loader2, Sparkles, Trash2 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 
-export function LoadDemoButton({ variant = 'full' }: { variant?: 'full' | 'compact' }) {
+export function LoadDemoButton({ variant = 'full', onLoad }: { variant?: 'full' | 'compact'; onLoad?: () => void }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [clearing, setClearing] = useState(false)
@@ -19,7 +19,14 @@ export function LoadDemoButton({ variant = 'full' }: { variant?: 'full' | 'compa
         title: 'Demo loaded',
         description: `${data.companies ?? 8} companies and ${data.signals ?? 18} signals are ready.`,
       })
+      // Bust all caches so every client page re-fetches fresh data
+      const { setCached } = await import('@/lib/page-cache')
+      setCached('companies', null)
+      setCached('signals-ALL', null)
+      setCached('signals-500', null)
+      setCached('signals-200', null)
       router.refresh()
+      onLoad?.()
     } catch {
       toast({ title: 'Could not load demo', variant: 'destructive' })
     } finally {
