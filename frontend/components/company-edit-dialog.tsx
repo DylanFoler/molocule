@@ -54,7 +54,7 @@ export function CompanyEditDialog({ company, open, onClose, onSaved }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="sm:max-w-[440px]">
+      <DialogContent className="sm:max-w-[440px]" onClick={e => e.stopPropagation()}>
         <DialogHeader>
           <DialogTitle>Edit {company.name}</DialogTitle>
         </DialogHeader>
