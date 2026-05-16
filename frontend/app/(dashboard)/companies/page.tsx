@@ -42,7 +42,13 @@ export default function CompaniesPage() {
         setCached('companies', next)
         return next
       })
+      // Invalidate signal caches so stale signals for the deleted company don't persist
+      setCached('signals-500', null)
+      setCached('signals-ALL', null)
+      setCached('signals-200', null)
       toast({ title: 'Company removed' })
+    } else {
+      toast({ title: 'Failed to remove company', variant: 'destructive' })
     }
   }
 
@@ -50,6 +56,7 @@ export default function CompaniesPage() {
     setScanningAll(true)
     try {
       const res  = await fetch('/api/companies/scan-all', { method: 'POST' })
+      if (!res.ok) throw new Error('Scan failed')
       const data = await res.json()
       const found = data?.total_found ?? 0
       toast({
@@ -135,7 +142,11 @@ export default function CompaniesPage() {
               key={company.id}
               company={company}
               onDelete={handleDelete}
-              onUpdate={updated => setCompanies(cs => cs.map(c => c.id === updated.id ? { ...c, ...updated } : c))}
+              onUpdate={updated => setCompanies(cs => {
+                const next = cs.map(c => c.id === updated.id ? { ...c, ...updated } : c)
+                setCached('companies', next)
+                return next
+              })}
               signalTypes={signalTypesByCompany.get(company.id)}
               onScanComplete={fetchData}
             />

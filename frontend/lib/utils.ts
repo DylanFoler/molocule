@@ -16,7 +16,7 @@ export function formatDate(date: string | Date): string {
 }
 
 export function formatDateRange(start: string | Date, end: string | Date): string {
-  return `${format(new Date(start), 'MMM d')} – ${format(new Date(end), 'MMM d, yyyy')}`
+  return `${format(new Date(start), 'MMM d')} to ${format(new Date(end), 'MMM d, yyyy')}`
 }
 
 export function signalTypeColor(type: SignalType): string {

@@ -15,14 +15,10 @@ export function LoadDemoButton({ variant = 'full' }: { variant?: 'full' | 'compa
     try {
       const res = await fetch('/api/demo/seed', { method: 'POST' })
       const data = await res.json()
-      if (data.already_seeded) {
-        toast({ title: 'Demo already loaded', description: 'Refreshing to show your data.' })
-      } else {
-        toast({
-          title: `Demo loaded`,
-          description: `${data.companies} companies, ${data.signals} signals, and 1 digest are ready.`,
-        })
-      }
+      toast({
+        title: 'Demo loaded',
+        description: `${data.companies ?? 8} companies and ${data.signals ?? 18} signals are ready.`,
+      })
       router.refresh()
     } catch {
       toast({ title: 'Could not load demo', variant: 'destructive' })
@@ -34,7 +30,8 @@ export function LoadDemoButton({ variant = 'full' }: { variant?: 'full' | 'compa
   async function handleClear() {
     setClearing(true)
     try {
-      await fetch('/api/demo/seed', { method: 'DELETE' })
+      const res = await fetch('/api/demo/seed', { method: 'DELETE' })
+      if (!res.ok) throw new Error()
       toast({ title: 'Demo data cleared' })
       router.refresh()
     } catch {

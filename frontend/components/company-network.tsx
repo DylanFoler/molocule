@@ -89,31 +89,30 @@ function buildSignalMentionDetail(nameA: string, nameB: string, mentionTitle: st
   const m = (mentionTitle + ' ' + (signal.summary ?? '')).toLowerCase()
 
   if (/chip|semiconductor|silicon|manufactur|supply.?chain|foundry|wafer|fab/.test(m)) {
-    return `A supply chain story named both ${nameA} and ${nameB} in the same context: "${mentionTitle}". This places the two companies in a direct hardware dependency relationship, not just a competitive one. Supply chain co-mentions precede contract announcements or design wins that rarely surface officially until months after the first press signal.`
+    return `A supply chain story named both ${nameA} and ${nameB} in the same context: "${mentionTitle}". This places the two companies in a direct hardware dependency relationship, not just a competitive one. If this connection deepens, expect formal contract or design-win announcements from ${nameA} within the next two quarters, as supply chain co-mentions typically lead official disclosures by 6 to 12 months.`
   }
   if (/acqui|merger|deal|takeover|buyout|acquire/.test(m)) {
-    return `${nameA} and ${nameB} appear together in an M&A context: "${mentionTitle}". Deal-adjacent coverage naming two specific companies is one of the strongest co-mention signals, indicating that bankers or analysts are already running scenario models. Watch for follow-on coverage and executive travel patterns as confirming signals.`
+    return `${nameA} and ${nameB} appear together in an M&A context: "${mentionTitle}". Deal-adjacent coverage naming two specific companies means bankers or advisors are already running models, even if nothing is confirmed. Watch ${nameA} and ${nameB} board composition changes, advisor appointments, and executive travel over the next 60 days as the most reliable early confirming signals.`
   }
   if (/partner|collaborat|integrat|alliance|joint/.test(m)) {
-    return `A partnership story tied ${nameA} and ${nameB} together: "${mentionTitle}". Technical integrations or go-to-market alliances between these two companies would shift the competitive surface for anyone selling into the same space. Partnership signals typically lead to joint announcements within 60 to 90 days of first press mention.`
+    return `A partnership story tied ${nameA} and ${nameB} together: "${mentionTitle}". If this integration formalizes, it will shift the competitive surface for any vendor selling adjacent to either company. Expect a joint go-to-market announcement or co-sell agreement within 60 to 90 days if both executive teams are aligned on the opportunity.`
   }
   if (/regulat|antitrust|ftc|doj|investig|fine|sanction|scrutin/.test(m)) {
-    return `Both ${nameA} and ${nameB} surfaced in the same regulatory story: "${mentionTitle}". A single ruling or investigation that names both companies simultaneously can reshape the competitive landscape for the entire sector, not just the two firms named. Monitor for follow-on filings or executive testimony that might clarify which company faces greater exposure.`
+    return `Both ${nameA} and ${nameB} surfaced in the same regulatory story: "${mentionTitle}". When two companies are named together in regulatory coverage, the company with the smaller legal and compliance team faces disproportionate distraction. Watch which one slows roadmap execution over the next two quarters as an indirect measure of exposure.`
   }
   if (/fund|invest|valuat|round|capital|series|raise/.test(m)) {
-    return `${nameA} and ${nameB} appeared together in a capital markets story: "${mentionTitle}". When investors benchmark two companies in the same analysis, it signals they are competing for space in the same portfolio thesis or sector allocation. Whichever company closes its round first typically gains a credibility advantage in the next enterprise sales cycle.`
+    return `${nameA} and ${nameB} appeared together in a capital markets story: "${mentionTitle}". When investors benchmark two companies in the same analysis, it signals portfolio-level positioning rather than isolated bets. Whichever company closes its round first in this cycle will likely use that credibility to accelerate enterprise contract conversations before the other can respond.`
   }
   if (/compet|rival|vs\.|versus|battle|war|beat|lose|win|market.?share/.test(m)) {
-    return `A competitive intelligence story directly pitted ${nameA} against ${nameB}: "${mentionTitle}". When media frames two companies as adversaries in a single story, it tends to sharpen customer evaluation cycles and accelerate deal timelines at both. Watch for changes in pricing pages, sales messaging, or product roadmaps at either company as a response.`
+    return `A competitive intelligence story directly framed ${nameA} against ${nameB}: "${mentionTitle}". Media framing like this sharpens customer evaluation cycles at both companies almost immediately. Expect one of them to respond with a pricing page update, a case study targeting the other's customer segment, or a product announcement within the next 30 to 60 days.`
   }
   if (/hire|appoint|join|exec|ceo|cto|vp|chief|head.?of/.test(m)) {
-    return `A leadership or talent story tied ${nameA} and ${nameB} together: "${mentionTitle}". Executive moves that name two companies in the same headline reveal which direction competitive domain expertise is flowing. Senior hires from a rival are often the first visible signal of a strategic pivot that will take 6 to 12 months to manifest in product.`
+    return `A leadership story tied ${nameA} and ${nameB} together: "${mentionTitle}". The specific domain this executive brings (operations, sales, product, or engineering) predicts exactly which capability the hiring company is about to accelerate. If the function matches a known gap, expect a visible output in that area within 6 months.`
   }
-  // Default: generic but still specific to the actual mention
-  return `A news story named both ${nameA} and ${nameB} in the same context: "${mentionTitle}". Independent editorial coverage that links two companies in a single story indicates analysts or reporters are already treating them as part of the same narrative. Track the story thread over the next 30 days to see if the connection develops into a deal, rivalry, or structural market shift.`
+  return `A news story named both ${nameA} and ${nameB} in the same context: "${mentionTitle}". Independent editorial coverage linking two companies in a single story indicates analysts or reporters are already treating them as part of the same narrative. If a second story co-names them within 30 days, treat the connection as structurally confirmed rather than incidental.`
 }
 
-// ── Build unique COMPETITIVE detail — uses actual signals for non-hardcoded pairs ──
+// ── Build unique COMPETITIVE detail, uses actual signals for non-hardcoded pairs
 function buildCompetitiveDetail(nameA: string, nameB: string, sigsA: Signal[], sigsB: Signal[], industry: string): string {
   const key = [nameA, nameB].map(n => n.toLowerCase()).sort().join('|')
 
@@ -190,6 +189,30 @@ function buildIndustryPeerDetail(nameA: string, nameB: string, sigsA: Signal[], 
   return `Both ${nameA} and ${nameB} had notable activity in the ${industryA} sector during the same period, creating a structural link between how analysts read each company's moves. Signals from either company are worth evaluating in the context of what the other is doing simultaneously rather than in isolation. This connection becomes most useful when one company moves and you need to predict whether the other will follow, react, or hold course.`
 }
 
+// ── Build talent flow detail with role-specific prediction ────────────────
+function buildTalentFlowDetail(nameA: string, nameB: string, signalTitle: string): string {
+  const t = signalTitle.toLowerCase()
+  let prediction: string
+
+  if (/\bcro\b|chief revenue|sales/.test(t)) {
+    prediction = `A CRO crossing between these companies signals ${nameA} is professionalizing its enterprise sales motion. Expect structured territory plans, enterprise packaging changes, and longer average contract values to emerge within the next two quarters.`
+  } else if (/\bcoo\b|chief operating|operations/.test(t)) {
+    prediction = `An operations executive moving between ${nameA} and ${nameB} signals one of them is preparing for scaled growth or IPO-readiness. Watch for process standardization, headcount structure changes, and new geographic expansion announcements within 6 months.`
+  } else if (/\bcto\b|chief technology|engineering/.test(t)) {
+    prediction = `A technical executive crossing between ${nameA} and ${nameB} often precedes a platform or architecture shift at the destination company. Expect a major product or infrastructure announcement within 12 months that reflects the incoming CTO's prior technical bets.`
+  } else if (/\bcpo\b|chief product|product/.test(t)) {
+    prediction = `A product leader moving between ${nameA} and ${nameB} typically reshapes the destination company's roadmap toward the market the executive knows best. The first 90-day product decision will signal which customer segment is now the primary priority.`
+  } else if (/\bcfo\b|chief financial|finance/.test(t)) {
+    prediction = `A CFO hire from this background signals the destination company is entering a capital discipline phase, whether that means IPO preparation, profitability targets, or tighter unit economics requirements on sales. Procurement cycles at that company will likely tighten within two quarters.`
+  } else if (/vp|vice president|head of/.test(t)) {
+    prediction = `A VP-level move between ${nameA} and ${nameB} at this seniority indicates deliberate capability acquisition rather than passive recruitment. The function being hired predicts exactly which gap the company is closing. Watch the destination company's next job postings in the same function as the clearest confirmation of intent.`
+  } else {
+    prediction = `Senior talent moving explicitly between ${nameA} and ${nameB} signals one team identified a specific capability gap and moved to close it. The first major announcement in that person's domain within 6 months will confirm whether the bet was correct.`
+  }
+
+  return `A hire signal names both ${nameA} and ${nameB} in the same story: "${signalTitle}". ${prediction}`
+}
+
 // ── Talent flow detection ──────────────────────────────────────────────────
 function detectTalentFlow(sigsA: Signal[], nameB: string, sigsB: Signal[], nameA: string): string | null {
   const hireRegex = /\b(hired?|joins?|appoints?|named|poached?|from)\b/i
@@ -214,10 +237,10 @@ function detectMarketPressure(sigsA: Signal[], companyA: Company, sigsB: Signal[
   const launchA  = sigsA.find(s => s.type === 'PRODUCT_LAUNCH')
   const launchB  = sigsB.find(s => s.type === 'PRODUCT_LAUNCH')
 
-  if (fundingA && layoffB) return `${companyA.name} secured new capital while ${companyB.name} reduced headcount in the same period. This divergence signals ${companyA.name} is expanding market position while ${companyB.name} is contracting, opening a window to accelerate into ${companyB.name}'s existing customer base. Monitor ${companyB.name} customer churn and ${companyA.name} pipeline growth as the pressure intensifies.`
-  if (fundingB && layoffA) return `${companyB.name} secured new capital while ${companyA.name} reduced headcount in the same period. This divergence signals ${companyB.name} is expanding market position while ${companyA.name} is contracting, opening a window to accelerate into ${companyA.name}'s existing customer base. Monitor ${companyA.name} customer churn and ${companyB.name} pipeline growth as the pressure intensifies.`
-  if (launchA && launchB) return `Both ${companyA.name} and ${companyB.name} launched new products or features in the same period, signaling a direct feature race. Simultaneous launches indicate both companies are responding to the same customer feedback or competitive intelligence. The company that captures mindshare fastest in this window typically holds a durable advantage in the next sales cycle.`
-  if (fundingA && fundingB) return `Both ${companyA.name} and ${companyB.name} raised funding in the same cycle, competing for the same investor attention and portfolio positioning. Parallel fundraises in the same sector signal a market inflection point both teams identified independently. Watch for accelerated hiring and product velocity from both companies as the new capital is deployed.`
+  if (fundingA && layoffB) return `${companyA.name} secured new capital while ${companyB.name} reduced headcount in the same period. This divergence is one of the strongest leading indicators of a market share shift: the funded company accelerates into exactly the customer segments the contracting one can no longer serve. Expect ${companyA.name} to announce expanded enterprise coverage or a new product tier within the next 60 days targeting ${companyB.name}'s existing base.`
+  if (fundingB && layoffA) return `${companyB.name} secured new capital while ${companyA.name} reduced headcount in the same period. This divergence is one of the strongest leading indicators of a market share shift: the funded company accelerates into exactly the customer segments the contracting one can no longer serve. Expect ${companyB.name} to announce expanded coverage or a new product tier within the next 60 days targeting ${companyA.name}'s existing base.`
+  if (launchA && launchB) return `Both ${companyA.name} and ${companyB.name} launched new products or features in the same period, confirming a direct feature race in this segment. When two competitors ship in the same window, the market resolves on distribution speed rather than product quality. Predict that whichever company lands the first major enterprise logo referencing the new feature will set the benchmark both sales teams cite for the next 12 months.`
+  if (fundingA && fundingB) return `Both ${companyA.name} and ${companyB.name} raised capital in the same cycle, signaling that investors are positioning ahead of a sector-wide inflection rather than backing a single winner. When parallel fundraises close, the deployment race begins: the company that converts capital into headcount and product faster will capture the market share that the next 18 months will distribute. Watch first job postings from both teams as the clearest signal of where each is placing its first bet.`
   return null
 }
 
@@ -272,7 +295,7 @@ function computeEdges(companies: Company[], signals: Signal[]): Edge[] {
           source: a.id, target: b.id, strength: 0.75,
           kind: 'TALENT_FLOW',
           reason: 'Talent flow',
-          detail: `A verified hire signal names both ${a.name} and ${b.name} in the same story: "${talent}". Senior moves that explicitly cross between two companies reveal which team is on the offensive and where domain expertise is migrating. Track follow-on hires over the next 60 days to confirm whether this is an isolated pickup or the beginning of a broader talent shift.`,
+          detail: buildTalentFlowDetail(a.name, b.name, talent),
           color: EDGE_COLORS.TALENT_FLOW,
         })
         continue
@@ -513,7 +536,13 @@ export function CompanyNetwork({ companies, signals, enableNavigation = true }: 
   return (
     <div className="relative w-full" style={{height:520}}>
       <canvas ref={canvasRef} className="w-full h-full" style={{cursor:'grab',display:'block'}}
-        onWheel={onWheel} onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp} />
+        onWheel={onWheel} onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp}
+        onMouseLeave={() => {
+          // Only release drag/pan, never dismiss the info panel on mouse leave
+          if(dragRef.current){const n=nodesRef.current.find(n=>n.id===dragRef.current!.nodeId);if(n){n.isDragging=false;n.vx=0;n.vy=0};dragRef.current=null}
+          panRef.current=null; mouseDownPos.current=null
+          if(canvasRef.current) canvasRef.current.style.cursor='grab'
+        }} />
 
       {/* Controls — top-left so it never overlaps the legend */}
       <div className="absolute top-3 left-3">

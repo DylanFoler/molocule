@@ -36,11 +36,13 @@ export async function GET(req: NextRequest) {
     await supabase.from('signals').update({ is_new: false }).in('id', newIds)
   }
 
-  return NextResponse.json(data ?? [])
+  return NextResponse.json(data ?? [], {
+    headers: { 'Cache-Control': 'private, max-age=20, stale-while-revalidate=60' },
+  })
 }
 
 export async function POST(req: NextRequest) {
-  // Internal endpoint for workers to push signals — secured by CRON_SECRET
+  // Internal endpoint for workers to push signals, secured by CRON_SECRET
   const authHeader = req.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

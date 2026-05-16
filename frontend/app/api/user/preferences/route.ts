@@ -19,14 +19,14 @@ export async function POST(req: NextRequest) {
     .eq('id', session.user.id)
 
   if (error) {
-    // Column may not exist yet — upsert the user row to ensure they exist,
+    // Column may not exist yet, upsert the user row to ensure they exist,
     // then try again. If still failing, return success so UI isn't blocked.
     if (error.message.includes('column') || error.message.includes('preferences')) {
-      console.warn('preferences column missing — run supabase/schema.sql migration. Silently succeeding.')
+      console.warn('preferences column missing, run supabase/schema.sql migration. Silently succeeding.')
       return NextResponse.json({ success: true, warning: 'preferences column not migrated yet' })
     }
 
-    // User row may not exist yet — create it first
+    // User row may not exist yet, create it first
     if (error.message.includes('No rows')) {
       await supabase.from('users').upsert({
         id: session.user.id,
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     }
 
     console.error('Preferences save error:', error.message)
-    // Don't block the UI — return success anyway so onboarding can dismiss
+    // Don't block the UI, return success anyway so onboarding can dismiss
     return NextResponse.json({ success: true, warning: error.message })
   }
 

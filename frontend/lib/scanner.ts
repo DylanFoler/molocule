@@ -5,6 +5,7 @@ import type { SignalType } from '@/lib/types'
 
 const HEADERS = { 'User-Agent': 'Molocule/1.0 (signal scanner)' }
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
+const FETCH_TIMEOUT = 5000
 
 export interface ScanResult {
   signals_found: number
@@ -50,7 +51,7 @@ async function scanGoogleNews(companyId: string, companyName: string): Promise<n
     const q = encodeURIComponent(`"${term}"`)
     const url = `https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`
     try {
-      const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(8000) })
+      const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(FETCH_TIMEOUT) })
       if (!res.ok) continue
       const items = parseRSSItems(await res.text())
         .filter(i => passesQualityFilter(i.title, i.description ?? '', companyName))
@@ -66,7 +67,7 @@ async function scanGoogleNews(companyId: string, companyName: string): Promise<n
 async function scanHackerNews(companyId: string, companyName: string): Promise<number> {
   const since = Math.floor((Date.now() - SEVEN_DAYS_MS) / 1000)
   const url = `https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(companyName)}&tags=story&hitsPerPage=5&numericFilters=created_at_i>${since}`
-  const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(8000) })
+  const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(FETCH_TIMEOUT) })
   if (!res.ok) return 0
   const json = await res.json() as { hits: Array<{ title: string; url?: string; story_text?: string; objectID: string }> }
   const items = (json.hits ?? [])
@@ -76,7 +77,7 @@ async function scanHackerNews(companyId: string, companyName: string): Promise<n
 }
 
 async function scanRSS(companyId: string, companyName: string, rssUrl: string): Promise<number> {
-  const res = await fetch(rssUrl, { headers: HEADERS, signal: AbortSignal.timeout(8000) })
+  const res = await fetch(rssUrl, { headers: HEADERS, signal: AbortSignal.timeout(FETCH_TIMEOUT) })
   if (!res.ok) return 0
   const items = parseRSSItems(await res.text())
     .filter(i => !i.pubDate || new Date(i.pubDate).getTime() > Date.now() - SEVEN_DAYS_MS)

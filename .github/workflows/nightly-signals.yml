@@ -12,6 +12,19 @@ jobs:
     timeout-minutes: 30
 
     steps:
+      - name: Validate required secrets
+        run: |
+          if [ -z "${{ secrets.NEXT_PUBLIC_URL }}" ]; then
+            echo "ERROR: NEXT_PUBLIC_URL secret is not set in GitHub Actions secrets."
+            echo "Go to Settings > Secrets and variables > Actions and add NEXT_PUBLIC_URL (your Vercel deployment URL)."
+            exit 1
+          fi
+          if [ -z "${{ secrets.CRON_SECRET }}" ]; then
+            echo "ERROR: CRON_SECRET secret is not set in GitHub Actions secrets."
+            exit 1
+          fi
+          echo "Secrets present. Scanning ${{ secrets.NEXT_PUBLIC_URL }}"
+
       - name: Trigger signal scan
         run: |
           response=$(curl -s -w "\n%{http_code}" -X POST \
@@ -40,4 +53,4 @@ jobs:
         run: |
           curl -s -X POST "$SLACK_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
-            -d '{"text": ":zap: Molocule nightly scan complete — check your dashboard for new signals."}'
+            -d '{"text": ":zap: Molocule nightly scan complete. Check your dashboard for new signals."}'

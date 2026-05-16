@@ -6,15 +6,16 @@ import { ArrowLeft } from 'lucide-react'
 import { CompanyNetwork } from '@/components/company-network'
 import { SignalCard } from '@/components/signal-card'
 import { getFaviconUrl, getDomain } from '@/lib/utils'
+import { getCached, setCached } from '@/lib/page-cache'
 import { SIGNAL_LABELS } from '@/lib/types'
 import type { Company, Signal } from '@/lib/types'
 
 export default function FocusedNetworkPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
-  const [allCompanies, setAllCompanies] = useState<Company[]>([])
-  const [allSignals,   setAllSignals]   = useState<Signal[]>([])
-  const [loading,      setLoading]      = useState(true)
+  const [allCompanies, setAllCompanies] = useState<Company[]>(() => getCached<Company[]>('companies') ?? [])
+  const [allSignals,   setAllSignals]   = useState<Signal[]>(() => getCached<Signal[]>('signals-500') ?? [])
+  const [loading,      setLoading]      = useState(() => getCached('companies') === null)
 
   useEffect(() => {
     async function load() {
@@ -22,8 +23,8 @@ export default function FocusedNetworkPage({ params }: { params: Promise<{ id: s
         fetch('/api/companies'),
         fetch('/api/signals?limit=500'),
       ])
-      if (cRes.ok) setAllCompanies(await cRes.json())
-      if (sRes.ok) setAllSignals(await sRes.json())
+      if (cRes.ok) { const d = await cRes.json(); setCached('companies', d); setAllCompanies(d) }
+      if (sRes.ok) { const d = await sRes.json(); setCached('signals-500', d); setAllSignals(d) }
       setLoading(false)
     }
     load()
@@ -32,7 +33,7 @@ export default function FocusedNetworkPage({ params }: { params: Promise<{ id: s
   const focal = allCompanies.find(c => c.id === id)
 
   // Determine which companies are connected to this one using the same
-  // industry/rival/mention logic the graph uses — just keep companies
+  // industry/rival/mention logic the graph uses, just keep companies
   // that share at least one connection type with the focal node
   const sigsByCompany = new Map<string, Signal[]>()
   for (const s of allSignals) {
