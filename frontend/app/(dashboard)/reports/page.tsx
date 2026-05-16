@@ -123,23 +123,28 @@ export default function ReportsPage() {
             Connected Repositories
           </p>
           <div className="flex flex-wrap gap-2">
-            {repos.map(repo => (
-              <div key={repo.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
-                style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>
-                <Github className="w-3.5 h-3.5" style={{ color: 'rgba(255,255,255,0.3)' }} />
-                <span className="text-sm" style={{ color: 'rgba(255,255,255,0.75)' }}>{repo.full_name}</span>
-                <button onClick={() => generateDigest(repo.id)} disabled={generating === repo.id}
-                  className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-md transition-colors"
-                  style={{ color: 'rgba(255,255,255,0.45)', border: '1px solid rgba(255,255,255,0.07)' }}
-                  onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.88)')}
-                  onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.45)')}>
-                  {generating === repo.id
-                    ? <Loader2 className="w-3 h-3 animate-spin" />
-                    : <RefreshCw className="w-3 h-3" />}
-                  Generate
-                </button>
-              </div>
-            ))}
+            {repos.map(repo => {
+              const isDemo = repo.github_repo_id?.startsWith('9999')
+              return (
+                <div key={repo.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
+                  style={{ border: `1px solid ${isDemo ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.08)'}`, background: 'rgba(255,255,255,0.03)', opacity: isDemo ? 0.6 : 1 }}>
+                  <Github className="w-3.5 h-3.5" style={{ color: 'rgba(255,255,255,0.3)' }} />
+                  <span className="text-sm" style={{ color: 'rgba(255,255,255,0.75)' }}>{repo.full_name}</span>
+                  {isDemo ? (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ color: 'rgba(255,255,255,0.3)', border: '1px solid rgba(255,255,255,0.08)' }}>Demo</span>
+                  ) : (
+                    <button onClick={() => generateDigest(repo.id)} disabled={generating === repo.id}
+                      className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-md transition-colors"
+                      style={{ color: 'rgba(255,255,255,0.45)', border: '1px solid rgba(255,255,255,0.07)' }}
+                      onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.88)')}
+                      onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.45)')}>
+                      {generating === repo.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                      Generate
+                    </button>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
@@ -164,7 +169,13 @@ export default function ReportsPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {digests.map(digest => <ReportCard key={digest.id} digest={digest} />)}
+          {digests.map(digest => (
+            <ReportCard
+              key={digest.id}
+              digest={digest}
+              onDelete={id => setDigests(d => d.filter(x => x.id !== id))}
+            />
+          ))}
         </div>
       )}
     </div>

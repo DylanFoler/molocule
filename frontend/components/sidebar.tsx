@@ -5,92 +5,136 @@ import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import Image from 'next/image'
 import { LayoutDashboard, Building2, TrendingUp, GitPullRequest, Network, LogOut } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { MoleculeIcon } from '@/components/ui/molecule-icon'
 
 interface SidebarProps {
   user?: { name?: string | null; email?: string | null; image?: string | null }
 }
 
-const navItems = [
-  { href: '/dashboard', label: 'Overview',   icon: LayoutDashboard },
-  { href: '/companies', label: 'Companies',  icon: Building2 },
-  { href: '/signals',   label: 'Signals',    icon: TrendingUp },
-  { href: '/network',   label: 'Network',    icon: Network },
-  { href: '/reports',   label: 'Dev Digest', icon: GitPullRequest },
+const NAV = [
+  { href: '/dashboard', label: 'Overview',   Icon: LayoutDashboard, cx: 112, cy: 82  },
+  { href: '/companies', label: 'Companies',  Icon: Building2,        cx: 55,  cy: 136 },
+  { href: '/signals',   label: 'Signals',    Icon: TrendingUp,       cx: 169, cy: 136 },
+  { href: '/network',   label: 'Network',    Icon: Network,          cx: 55,  cy: 200 },
+  { href: '/reports',   label: 'Dev Digest', Icon: GitPullRequest,   cx: 169, cy: 200 },
+]
+
+// Bond pairs between nodes
+const BONDS: [number, number][] = [
+  [0, 1], [0, 2],   // Overview → Companies, Signals
+  [1, 3], [2, 4],   // Companies → Network, Signals → Dev Digest
+  [3, 4],           // Network — Dev Digest (bottom bond)
+  [1, 2],           // Companies — Signals (cross bond)
 ]
 
 export function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname()
 
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(href + '/')
+  }
+
   return (
     <aside className="w-56 flex-shrink-0 flex flex-col h-full relative"
-      style={{
-        background: '#060606',
-        borderRight: '1px solid rgba(255,255,255,0.06)',
-      }}>
+      style={{ background: '#060606', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
 
       {/* Top hairline */}
       <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
 
       {/* Logo */}
       <div className="h-14 flex items-center px-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-        <Link href="/dashboard" className="flex items-center gap-2.5 group">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200"
-            style={{
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.1)',
-            }}>
+        <Link href="/dashboard" className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
             <MoleculeIcon size={16} glowIntensity="subtle" />
           </div>
           <span className="font-bold text-[15px] tracking-tight" style={{
             background: 'linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.5))',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
           }}>
             molocule
           </span>
         </Link>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 px-2 py-3 space-y-0.5">
-        {navItems.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(href + '/')
-          return (
-            <Link key={href} href={href}
-              className="relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group"
-              style={active ? {
-                background: 'rgba(255,255,255,0.06)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                color: 'rgba(255,255,255,0.9)',
-              } : {
-                border: '1px solid transparent',
-                color: 'rgba(255,255,255,0.4)',
-              }}
-              onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.75)' }}
-              onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.4)' }}
-            >
-              {/* Active left accent */}
-              {active && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-full"
-                  style={{ background: 'rgba(255,255,255,0.7)', boxShadow: '0 0 6px rgba(255,255,255,0.5)' }} />
-              )}
+      {/* Molecule nav */}
+      <div className="flex-1 flex flex-col items-center pt-4 pb-2">
+        <svg width="224" height="260" viewBox="0 0 224 260">
+          {/* Bond lines */}
+          {BONDS.map(([i, j]) => {
+            const a = NAV[i]; const b = NAV[j]
+            const activeA = isActive(a.href); const activeB = isActive(b.href)
+            const lit = activeA || activeB
+            return (
+              <line key={`${i}-${j}`}
+                x1={a.cx} y1={a.cy} x2={b.cx} y2={b.cy}
+                stroke={lit ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.06)'}
+                strokeWidth={lit ? 1.2 : 0.8}
+                strokeDasharray={lit ? 'none' : '3,3'}
+              />
+            )
+          })}
 
-              <Icon className="w-4 h-4"
-                style={{ color: active ? 'rgba(255,255,255,0.85)' : 'inherit',
-                  filter: active ? 'drop-shadow(0 0 4px rgba(255,255,255,0.4))' : 'none' }} />
-              <span>{label}</span>
+          {/* Nodes */}
+          {NAV.map((item) => {
+            const active = isActive(item.href)
+            const r = item.href === '/dashboard' ? 22 : 18
+            return (
+              <Link key={item.href} href={item.href}>
+                <g>
+                  {/* Glow ring for active */}
+                  {active && (
+                    <circle cx={item.cx} cy={item.cy} r={r + 5}
+                      fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+                  )}
 
-              {active && (
-                <span className="ml-auto w-1.5 h-1.5 rounded-full"
-                  style={{ background: 'rgba(255,255,255,0.7)', boxShadow: '0 0 5px rgba(255,255,255,0.6)', animation: 'pulse-ring 2.5s ease-in-out infinite' }} />
-              )}
-            </Link>
-          )
-        })}
-      </nav>
+                  {/* Node circle */}
+                  <circle cx={item.cx} cy={item.cy} r={r}
+                    fill={active ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.03)'}
+                    stroke={active ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.1)'}
+                    strokeWidth={active ? 1.2 : 0.8}
+                  />
+
+                  {/* Active pulse dot */}
+                  {active && (
+                    <circle cx={item.cx + r - 4} cy={item.cy - r + 4} r={3}
+                      fill="rgba(255,255,255,0.7)">
+                      <animate attributeName="opacity" values="1;0.3;1" dur="2.5s" repeatCount="indefinite" />
+                    </circle>
+                  )}
+
+                  {/* Icon via foreignObject */}
+                  <foreignObject
+                    x={item.cx - 10} y={item.cy - 10}
+                    width={20} height={20}
+                    style={{ overflow: 'visible' }}>
+                    <item.Icon
+                      style={{
+                        width: 16, height: 16,
+                        color: active ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.35)',
+                        filter: active ? 'drop-shadow(0 0 4px rgba(255,255,255,0.4))' : 'none',
+                        marginLeft: 2, marginTop: 2,
+                      }}
+                    />
+                  </foreignObject>
+
+                  {/* Label */}
+                  <text
+                    x={item.cx} y={item.cy + r + 13}
+                    textAnchor="middle"
+                    fontSize={9}
+                    fill={active ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.28)'}
+                    fontFamily="system-ui, sans-serif"
+                    fontWeight={active ? '600' : '400'}
+                    letterSpacing="0.05em">
+                    {item.label.toUpperCase()}
+                  </text>
+                </g>
+              </Link>
+            )
+          })}
+        </svg>
+      </div>
 
       {/* Divider */}
       <div className="mx-3 h-px" style={{ background: 'rgba(255,255,255,0.05)' }} />
@@ -116,7 +160,7 @@ export function Sidebar({ user }: SidebarProps) {
         </div>
 
         <button onClick={() => signOut({ callbackUrl: '/' })}
-          className="w-full mt-1 flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition-all duration-200"
+          className="w-full mt-1 flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition-all"
           style={{ color: 'rgba(255,255,255,0.3)', border: '1px solid transparent' }}
           onMouseEnter={e => {
             (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.65)'

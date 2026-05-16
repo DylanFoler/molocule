@@ -7,12 +7,17 @@ function getClient() {
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 }
 
-const SIGNAL_FALLBACKS: Record<SignalType, string> = {
-  FUNDING:        'New funding signals accelerated growth and increased budget for new tools.',
-  KEY_HIRE:       'Leadership hire suggests strategic expansion, good time to engage.',
-  LAYOFF:         'Workforce reduction may signal budget tightening or pivot in priorities.',
-  PRODUCT_LAUNCH: 'New product launch opens the door for complementary solution conversations.',
-  GENERAL:        'Company activity detected, worth monitoring for follow-up signals.',
+// Fallbacks are specific to the signal type + pull key detail from title when possible
+function buildFallback(type: SignalType, title: string, company: string): string {
+  const t = title.slice(0, 120)
+  const fallbacks: Record<SignalType, string> = {
+    FUNDING:        `${company} has new capital — expect accelerated hiring and product investment in the next 12-18 months.`,
+    KEY_HIRE:       `New leadership at ${company} means strategy and vendor decisions may shift — reach out before they settle in.`,
+    LAYOFF:         `${company} is cutting costs — decision-makers are under pressure and may be open to efficiency-focused solutions.`,
+    PRODUCT_LAUNCH: `${company} shipped something new — assess whether it competes with or complements your offering.`,
+    GENERAL:        `${t} — monitor for follow-on signals that confirm a directional shift.`,
+  }
+  return fallbacks[type]
 }
 
 export async function analyzeSignal(params: {
@@ -21,29 +26,35 @@ export async function analyzeSignal(params: {
   title: string
   summary: string
 }): Promise<string> {
-  if (!hasKey) return SIGNAL_FALLBACKS[params.signalType]
+  if (!hasKey) return buildFallback(params.signalType, params.title, params.companyName)
 
   try {
     const client = getClient()
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 150,
+      max_tokens: 180,
       messages: [{
         role: 'user',
-        content: `You are a signal analyst writing micro-insights for sales and marketing teams.
+        content: `You are a senior analyst writing signal insights. Be specific — name numbers, people, and concrete implications. No vague phrases like "worth monitoring" or "opens doors".
 
 Company: ${params.companyName}
-Signal: ${params.signalType.toLowerCase().replace('_', ' ')}
-Title: ${params.title}
-Context: ${params.summary}
+Signal type: ${params.signalType}
+Headline: ${params.title}
+Details: ${params.summary.slice(0, 400)}
 
-Write ONE sharp sentence (max 20 words) explaining why this signal matters for a sales rep. No fluff.`,
+Write exactly ONE sentence (max 25 words). State the specific business implication: who is affected, what decision window this opens, or what risk it signals. Use the actual details above.`,
       }],
     })
     const content = message.content[0]
-    return content.type === 'text' ? content.text.trim() : SIGNAL_FALLBACKS[params.signalType]
+    if (content.type !== 'text') return buildFallback(params.signalType, params.title, params.companyName)
+    const text = content.text.trim()
+    // Reject generic outputs and fall back
+    if (/worth monitoring|opens doors|may signal|good time to/i.test(text)) {
+      return buildFallback(params.signalType, params.title, params.companyName)
+    }
+    return text
   } catch {
-    return SIGNAL_FALLBACKS[params.signalType]
+    return buildFallback(params.signalType, params.title, params.companyName)
   }
 }
 

@@ -3,12 +3,16 @@
 import { useState } from 'react'
 import {
   FileDown, GitMerge, GitPullRequest, CheckCircle2, XCircle,
-  ChevronDown, ChevronUp, Sparkles, Clock, Users, BarChart2,
+  ChevronDown, ChevronUp, Sparkles, Clock, Users, BarChart2, Trash2, Loader2,
 } from 'lucide-react'
 import { formatDateRange, timeAgo } from '@/lib/utils'
+import { toast } from '@/hooks/use-toast'
 import type { Digest } from '@/lib/types'
 
-interface ReportCardProps { digest: Digest }
+interface ReportCardProps {
+  digest: Digest
+  onDelete?: (id: string) => void
+}
 
 function fmt(hours: number | null | undefined): string {
   if (hours == null) return 'N/A'
@@ -17,8 +21,23 @@ function fmt(hours: number | null | undefined): string {
   return `${(hours / 24).toFixed(1)}d`
 }
 
-export function ReportCard({ digest }: ReportCardProps) {
-  const [expanded, setExpanded] = useState(false)
+export function ReportCard({ digest, onDelete }: ReportCardProps) {
+  const [expanded,  setExpanded]  = useState(false)
+  const [deleting,  setDeleting]  = useState(false)
+
+  async function handleDelete() {
+    if (!window.confirm('Remove this digest?')) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/digests/${digest.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error()
+      toast({ title: 'Digest removed' })
+      onDelete?.(digest.id)
+    } catch {
+      toast({ title: 'Failed to remove digest', variant: 'destructive' })
+      setDeleting(false)
+    }
+  }
 
   const mergedPRs  = digest.raw_data.prs.filter(p => p.state === 'merged')
   const openPRs    = digest.raw_data.prs.filter(p => p.state === 'open')
@@ -174,6 +193,13 @@ export function ReportCard({ digest }: ReportCardProps) {
               className="w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-200"
               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.45)' }}>
               {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+            <button onClick={handleDelete} disabled={deleting}
+              className="w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-200"
+              style={{ background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.12)', color: 'rgba(248,113,113,0.5)' }}
+              onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = '#f87171')}
+              onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(248,113,113,0.5)')}>
+              {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
             </button>
           </div>
         </div>
