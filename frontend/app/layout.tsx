@@ -8,6 +8,10 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 export const metadata: Metadata = {
   title: 'Molocule - Signal Intelligence',
   description: 'Track company signals: funding rounds, key hires, product launches, and layoffs, with AI-powered insights.',
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
