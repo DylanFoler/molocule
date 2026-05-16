@@ -117,6 +117,17 @@ function passesQualityFilter(title: string, body: string, companyName: string): 
   // Skip listicles and how-to articles with no news value
   if (/^(top \d+|best \d+|\d+ ways|how to|guide to|what is )/i.test(title)) return false
 
+  // Skip law firm docket listings and procedural legal notices
+  // These are case citation records, not news about the company
+  if (/^in re\s+/i.test(title)) return false                          // "In Re OpenAI Inc., ..."
+  if (/\bllp\b|\blaw offices?\b|\bpc\b.*esq/i.test(title)) return false   // law firm name in headline
+  if (/\blitigation[^$]*[-–]\s*\w+\s+\bllp\b/i.test(title)) return false // "Litigation - Firm LLP" format
+  if (/\bcase no\b|\bdocket no\b|\bcivil action no\b/i.test(title)) return false
+  if (/\bclass action notice\b|\bjoin the class\b|\bsettlement claim\b|\bclaim deadline\b/i.test(title)) return false
+  if (/\bpursuant to\b.*\bact\b|\brule \d+[a-z]\b/i.test(title)) return false  // securities law boilerplate
+  if (/complaint(?! (?:about|that|is|from))|plaintiff|defendant|deposition|injunction|subpoena/i.test(t) &&
+      !/wins?|loses?|settles?|rules?|orders?|fines?|\$[\d]+/i.test(t)) return false  // procedural filings with no outcome
+
   // Skip if title is clearly about a different entity (contains the name only as part of a larger word)
   // e.g. "LinearB" shouldn't match "Linear", "Toaster" shouldn't match "Toast"
   const fullMatch = title.match(nameRegex)
@@ -177,7 +188,19 @@ function extractTag(xml: string, tag: string): string | null {
 }
 
 function stripCDATA(s: string): string {
-  return s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim()
+  return decodeHTMLEntities(s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim())
+}
+
+function decodeHTMLEntities(s: string): string {
+  return s
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;/gi, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .trim()
 }
 
 // ── Classification ─────────────────────────────────────────────────────────
