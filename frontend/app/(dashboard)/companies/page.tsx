@@ -37,12 +37,9 @@ export default function CompaniesPage() {
   async function handleDelete(id: string) {
     const res = await fetch(`/api/companies?id=${id}`, { method: 'DELETE' })
     if (res.ok) {
-      setCompanies(c => {
-        const next = c.filter(co => co.id !== id)
-        setCached('companies', next)
-        return next
-      })
-      // Invalidate signal caches so stale signals for the deleted company don't persist
+      setCompanies(c => c.filter(co => co.id !== id))
+      // Bust all caches so navigating away and back shows fresh data
+      setCached('companies', null)
       setCached('signals-500', null)
       setCached('signals-ALL', null)
       setCached('signals-200', null)
