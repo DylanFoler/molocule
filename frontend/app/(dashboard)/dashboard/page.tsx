@@ -4,47 +4,49 @@ import { createServiceClient } from '@/lib/supabase'
 import { StatsOverview } from '@/components/stats-overview'
 import { SignalCard } from '@/components/signal-card'
 import { CompanyForm } from '@/components/company-form'
-import { OnboardingPrompt } from '@/components/onboarding-prompt'
+import { LoadDemoButton } from '@/components/load-demo-button'
 import { AutoRefresh } from '@/components/auto-refresh'
-import type { Signal, DashboardStats } from '@/lib/types'
-import { TrendingUp, Network } from 'lucide-react'
 import { PageHeader } from '@/components/page-header'
+import { NetworkTeaser } from '@/components/network-teaser'
+import type { Signal, DashboardStats } from '@/lib/types'
+import { TrendingUp } from 'lucide-react'
 
 async function getDashboardData(userId: string) {
   const supabase = createServiceClient()
 
-  const [companiesRes, signalsRes, reposRes, digestsRes, recentSignalsRes, userRes] = await Promise.all([
+  const [companiesRes, recentSignalsRes] = await Promise.all([
     supabase.from('companies').select('id').eq('user_id', userId),
-    supabase.from('signals').select('id, is_new, detected_at').eq('companies.user_id', userId),
-    supabase.from('repos').select('id').eq('user_id', userId),
-    supabase.from('digests').select('id').eq('repos.user_id', userId),
-    supabase.from('signals').select('*, company:companies(*)').order('detected_at', { ascending: false }).limit(8),
-    supabase.from('users').select('preferences').eq('id', userId).single(),
+    supabase
+      .from('signals')
+      .select('*, company:companies!inner(*)')
+      .eq('companies.user_id', userId)
+      .order('detected_at', { ascending: false })
+      .limit(8),
   ])
 
   const today = new Date(); today.setHours(0, 0, 0, 0)
+  const companyIds = (companiesRes.data ?? []).map(c => c.id)
+  const signalsRes = companyIds.length > 0
+    ? await supabase.from('signals').select('id, detected_at').in('company_id', companyIds)
+    : { data: [] }
 
   const stats: DashboardStats = {
     total_companies:   companiesRes.data?.length ?? 0,
     active_signals:    signalsRes.data?.length ?? 0,
-    new_signals_today: signalsRes.data?.filter(s => new Date(s.detected_at) >= today).length ?? 0,
-    connected_repos:   reposRes.data?.length ?? 0,
-    digests_generated: digestsRes.data?.length ?? 0,
+    new_signals_today: (signalsRes.data ?? []).filter(s => new Date(s.detected_at) >= today).length,
   }
 
-  const prefs = (userRes.data as { preferences?: { company_types?: string[] } } | null)?.preferences ?? null
-
-  return { stats, recentSignals: recentSignalsRes.data ?? [], showOnboarding: !prefs?.company_types?.length }
+  return { stats, recentSignals: recentSignalsRes.data ?? [] }
 }
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
-  const { stats, recentSignals, showOnboarding } = await getDashboardData(session!.user.id)
+  const { stats, recentSignals } = await getDashboardData(session!.user.id)
+  const isEmpty = stats.total_companies === 0
 
   return (
     <div className="space-y-7 animate-slide-up">
       <AutoRefresh intervalMs={30_000} />
-      {showOnboarding && <OnboardingPrompt userId={session!.user.id} />}
 
       <PageHeader
         title="Signal Overview"
@@ -52,13 +54,34 @@ export default async function DashboardPage() {
         right={<CompanyForm />}
       />
 
+      {/* Empty state */}
+      {isEmpty && (
+        <div className="rounded-xl p-8 flex items-center justify-between gap-6"
+          style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
+          <div>
+            <p className="text-sm font-semibold mb-1" style={{ color: 'rgba(255,255,255,0.82)' }}>
+              No companies tracked yet
+            </p>
+            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+              Add a company or load demo data to see the full experience.
+            </p>
+          </div>
+          <div className="flex-shrink-0">
+            <LoadDemoButton variant="full" />
+          </div>
+        </div>
+      )}
+
       <StatsOverview stats={stats} />
 
+      {/* Recent Signals */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <TrendingUp className="w-4 h-4" style={{ color: 'rgba(255,255,255,0.5)' }} />
-            <h2 className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.82)' }}>Recent Signals</h2>
+            <h2 className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.82)' }}>
+              Recent Signals
+            </h2>
             {stats.new_signals_today > 0 && (
               <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold"
                 style={{ color: 'rgba(255,255,255,0.7)', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}>
@@ -66,19 +89,19 @@ export default async function DashboardPage() {
               </span>
             )}
           </div>
-          <a href="/signals" className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>View all →</a>
+          <a href="/signals" className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+            View all →
+          </a>
         </div>
 
         {recentSignals.length === 0 ? (
           <div className="rounded-xl p-10 text-center"
             style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <TrendingUp className="w-6 h-6 mx-auto mb-3" style={{ color: 'rgba(255,255,255,0.25)' }} />
-            <p className="text-sm font-medium mb-1" style={{ color: 'rgba(255,255,255,0.6)' }}>No signals yet</p>
-            <p className="text-xs mb-4" style={{ color: 'rgba(255,255,255,0.3)' }}>Add companies to start tracking, or load demo data to preview the full experience.</p>
-            <a href="/companies" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all"
-              style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)' }}>
-              Get started
-            </a>
+            <TrendingUp className="w-6 h-6 mx-auto mb-3" style={{ color: 'rgba(255,255,255,0.2)' }} />
+            <p className="text-sm mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>No signals yet</p>
+            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>
+              Add companies to start tracking, or load demo data above.
+            </p>
           </div>
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
@@ -91,24 +114,9 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      {stats.total_companies > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Network className="w-4 h-4" style={{ color: 'rgba(255,255,255,0.5)' }} />
-              <h2 className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.82)' }}>Company Network</h2>
-            </div>
-            <a href="/network" className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>Full view →</a>
-          </div>
-          <a href="/network" className="block rounded-xl overflow-hidden transition-all duration-200 group"
-            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', height: '160px' }}
-            onMouseEnter={undefined} onMouseLeave={undefined}>
-            <div className="h-full flex items-center justify-center gap-2" style={{ color: 'rgba(255,255,255,0.3)' }}>
-              <Network className="w-5 h-5" />
-              <span className="text-sm">Open molecule network view</span>
-            </div>
-          </a>
-        </div>
+      {/* Network teaser — client component to avoid server-side onMouseEnter */}
+      {stats.total_companies > 1 && (
+        <NetworkTeaser companyCount={stats.total_companies} />
       )}
     </div>
   )

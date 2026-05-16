@@ -1,11 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ExternalLink, Github, Linkedin, RefreshCw } from 'lucide-react'
+import { ExternalLink, Github, Linkedin, RefreshCw, Pencil } from 'lucide-react'
 import { getFaviconUrl, getDomain, timeAgo } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
+import { CompanyEditDialog } from '@/components/company-edit-dialog'
 import type { Company, SignalType } from '@/lib/types'
 
 const TYPE_COLORS: Record<string, string> = {
@@ -13,14 +13,16 @@ const TYPE_COLORS: Record<string, string> = {
   LAYOFF: '#f87171', PRODUCT_LAUNCH: '#fbbf24', GENERAL: 'rgba(255,255,255,0.4)',
 }
 
-export function CompanyCard({ company, onDelete, signalTypes, onScanComplete }: {
+export function CompanyCard({ company, onDelete, onUpdate, signalTypes, onScanComplete }: {
   company: Company
   onDelete?: (id: string) => void
+  onUpdate?: (updated: Company) => void
   signalTypes?: SignalType[]
   onScanComplete?: () => void
 }) {
   const router = useRouter()
-  const [scanning, setScanning] = useState(false)
+  const [scanning,   setScanning]   = useState(false)
+  const [editOpen,   setEditOpen]   = useState(false)
   const signalCount   = company.signal_count ?? 0
   const hasRecent     = !!company.latest_signal_at &&
     new Date(company.latest_signal_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
@@ -44,8 +46,10 @@ export function CompanyCard({ company, onDelete, signalTypes, onScanComplete }: 
   }
 
   return (
-    <Link href={`/companies/${company.id}`}
-      className="relative rounded-2xl overflow-hidden group transition-all duration-300 block"
+    <div onClick={() => router.push(`/companies/${company.id}`)}
+      role="button" tabIndex={0}
+      onKeyDown={e => e.key === 'Enter' && router.push(`/companies/${company.id}`)}
+      className="relative rounded-2xl overflow-hidden group transition-all duration-300 block cursor-pointer"
       style={{
         background: 'rgba(255,255,255,0.02)',
         border: '1px solid rgba(255,255,255,0.07)',
@@ -120,7 +124,7 @@ export function CompanyCard({ company, onDelete, signalTypes, onScanComplete }: 
             )}
           </div>
 
-          {/* Scan + delete controls — stop propagation so link doesn't fire */}
+          {/* Scan + edit + delete controls */}
           <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
             onClick={e => e.preventDefault()}>
             <button onClick={e => { e.preventDefault(); handleScan() }} disabled={scanning} title="Scan for new signals"
@@ -129,6 +133,13 @@ export function CompanyCard({ company, onDelete, signalTypes, onScanComplete }: 
               onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.9)')}
               onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.45)')}>
               <RefreshCw className={`w-3.5 h-3.5 ${scanning ? 'animate-spin' : ''}`} />
+            </button>
+            <button onClick={e => { e.preventDefault(); setEditOpen(true) }} title="Edit company"
+              className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.45)' }}
+              onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.9)')}
+              onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.45)')}>
+              <Pencil className="w-3 h-3" />
             </button>
             {onDelete && (
               <button onClick={e => { e.preventDefault(); onDelete(company.id) }}
@@ -194,6 +205,13 @@ export function CompanyCard({ company, onDelete, signalTypes, onScanComplete }: 
           </p>
         )}
       </div>
-    </Link>
+
+      <CompanyEditDialog
+        company={company}
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        onSaved={updated => { onUpdate?.(updated); onScanComplete?.() }}
+      />
+    </div>
   )
 }

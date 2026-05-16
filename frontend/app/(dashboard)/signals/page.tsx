@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { TrendingUp, Filter } from 'lucide-react'
 import { SignalCard } from '@/components/signal-card'
 import { PageHeader } from '@/components/page-header'
+import { getCached, setCached } from '@/lib/page-cache'
 import type { Signal, SignalType } from '@/lib/types'
 import { SIGNAL_LABELS } from '@/lib/types'
 
@@ -17,17 +18,21 @@ const FILTER_TYPES: Array<{ value: SignalType | 'ALL'; label: string }> = [
 ]
 
 export default function SignalsPage() {
-  const [signals, setSignals] = useState<Signal[]>([])
-  const [loading, setLoading] = useState(true)
+  const [signals,    setSignals]    = useState<Signal[]>(() => getCached<Signal[]>('signals-all') ?? [])
+  const [loading,    setLoading]    = useState(() => getCached('signals-all') === null)
   const [typeFilter, setTypeFilter] = useState<SignalType | 'ALL'>('ALL')
 
   useEffect(() => {
     async function fetchSignals() {
+      const cacheKey = `signals-${typeFilter}`
       const params = typeFilter !== 'ALL' ? `?type=${typeFilter}` : ''
       const res = await fetch(`/api/signals${params}`)
-      if (res.ok) setSignals(await res.json())
+      if (res.ok) { const d = await res.json(); setCached(cacheKey, d); setSignals(d) }
       setLoading(false)
     }
+    // Show cached data for this filter immediately
+    const cached = getCached<Signal[]>(`signals-${typeFilter}`)
+    if (cached) { setSignals(cached); setLoading(false) }
     fetchSignals()
     const id = setInterval(fetchSignals, 30_000)
     return () => clearInterval(id)
