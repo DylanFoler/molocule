@@ -15,16 +15,6 @@ A full-stack tool for engineering teams. Track buying signals across target comp
 - Signal deduplication, no noise
 - Slack ping + email digest delivery
 
-### Dev Digest
-
-- Connect GitHub repos via OAuth
-- Auto-pull PRs, workflow runs, and contributors for any date range
-- Claude summarizes: what shipped, engineering health, blockers
-- Velocity metrics: avg cycle time, avg review time
-- PR size distribution, contributor table, release notes
-- PDF export with full PR list
-- Weekly digest via GitHub Actions cron
-
 ## Stack
 
 - **Frontend**: Next.js 16 (App Router) · TypeScript · Tailwind CSS
