@@ -37,12 +37,15 @@ export default function CompaniesPage() {
   async function handleDelete(id: string) {
     const res = await fetch(`/api/companies?id=${id}`, { method: 'DELETE' })
     if (res.ok) {
-      setCompanies(c => {
-        const next = c.filter(co => co.id !== id)
-        setCached('companies', next)
-        return next
-      })
+      setCompanies(c => c.filter(co => co.id !== id))
+      // Bust all caches so navigating away and back shows fresh data
+      setCached('companies', null)
+      setCached('signals-500', null)
+      setCached('signals-ALL', null)
+      setCached('signals-200', null)
       toast({ title: 'Company removed' })
+    } else {
+      toast({ title: 'Failed to remove company', variant: 'destructive' })
     }
   }
 
@@ -50,6 +53,7 @@ export default function CompaniesPage() {
     setScanningAll(true)
     try {
       const res  = await fetch('/api/companies/scan-all', { method: 'POST' })
+      if (!res.ok) throw new Error('Scan failed')
       const data = await res.json()
       const found = data?.total_found ?? 0
       toast({
@@ -126,7 +130,7 @@ export default function CompaniesPage() {
           <p className="text-xs mb-4" style={{ color: 'rgba(255,255,255,0.3)' }}>
             {search ? 'Try a different term.' : 'Track a company or load demo data to see the full experience.'}
           </p>
-          {!search && <LoadDemoButton variant="compact" />}
+          {!search && <LoadDemoButton variant="compact" onLoad={fetchData} />}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -135,7 +139,11 @@ export default function CompaniesPage() {
               key={company.id}
               company={company}
               onDelete={handleDelete}
-              onUpdate={updated => setCompanies(cs => cs.map(c => c.id === updated.id ? { ...c, ...updated } : c))}
+              onUpdate={updated => setCompanies(cs => {
+                const next = cs.map(c => c.id === updated.id ? { ...c, ...updated } : c)
+                setCached('companies', next)
+                return next
+              })}
               signalTypes={signalTypesByCompany.get(company.id)}
               onScanComplete={fetchData}
             />

@@ -5,6 +5,7 @@ import type { SignalType } from '@/lib/types'
 
 const HEADERS = { 'User-Agent': 'Molocule/1.0 (signal scanner)' }
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
+const FETCH_TIMEOUT = 5000
 
 export interface ScanResult {
   signals_found: number
@@ -50,7 +51,7 @@ async function scanGoogleNews(companyId: string, companyName: string): Promise<n
     const q = encodeURIComponent(`"${term}"`)
     const url = `https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`
     try {
-      const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(8000) })
+      const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(FETCH_TIMEOUT) })
       if (!res.ok) continue
       const items = parseRSSItems(await res.text())
         .filter(i => passesQualityFilter(i.title, i.description ?? '', companyName))
@@ -66,7 +67,7 @@ async function scanGoogleNews(companyId: string, companyName: string): Promise<n
 async function scanHackerNews(companyId: string, companyName: string): Promise<number> {
   const since = Math.floor((Date.now() - SEVEN_DAYS_MS) / 1000)
   const url = `https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(companyName)}&tags=story&hitsPerPage=5&numericFilters=created_at_i>${since}`
-  const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(8000) })
+  const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(FETCH_TIMEOUT) })
   if (!res.ok) return 0
   const json = await res.json() as { hits: Array<{ title: string; url?: string; story_text?: string; objectID: string }> }
   const items = (json.hits ?? [])
@@ -76,7 +77,7 @@ async function scanHackerNews(companyId: string, companyName: string): Promise<n
 }
 
 async function scanRSS(companyId: string, companyName: string, rssUrl: string): Promise<number> {
-  const res = await fetch(rssUrl, { headers: HEADERS, signal: AbortSignal.timeout(8000) })
+  const res = await fetch(rssUrl, { headers: HEADERS, signal: AbortSignal.timeout(FETCH_TIMEOUT) })
   if (!res.ok) return 0
   const items = parseRSSItems(await res.text())
     .filter(i => !i.pubDate || new Date(i.pubDate).getTime() > Date.now() - SEVEN_DAYS_MS)
@@ -115,6 +116,17 @@ function passesQualityFilter(title: string, body: string, companyName: string): 
 
   // Skip listicles and how-to articles with no news value
   if (/^(top \d+|best \d+|\d+ ways|how to|guide to|what is )/i.test(title)) return false
+
+  // Skip law firm docket listings and procedural legal notices
+  // These are case citation records, not news about the company
+  if (/^in re\s+/i.test(title)) return false                          // "In Re OpenAI Inc., ..."
+  if (/\bllp\b|\blaw offices?\b|\bpc\b.*esq/i.test(title)) return false   // law firm name in headline
+  if (/\blitigation[^$]*[-–]\s*\w+\s+\bllp\b/i.test(title)) return false // "Litigation - Firm LLP" format
+  if (/\bcase no\b|\bdocket no\b|\bcivil action no\b/i.test(title)) return false
+  if (/\bclass action notice\b|\bjoin the class\b|\bsettlement claim\b|\bclaim deadline\b/i.test(title)) return false
+  if (/\bpursuant to\b.*\bact\b|\brule \d+[a-z]\b/i.test(title)) return false  // securities law boilerplate
+  if (/complaint(?! (?:about|that|is|from))|plaintiff|defendant|deposition|injunction|subpoena/i.test(t) &&
+      !/wins?|loses?|settles?|rules?|orders?|fines?|\$[\d]+/i.test(t)) return false  // procedural filings with no outcome
 
   // Skip if title is clearly about a different entity (contains the name only as part of a larger word)
   // e.g. "LinearB" shouldn't match "Linear", "Toaster" shouldn't match "Toast"
@@ -176,7 +188,19 @@ function extractTag(xml: string, tag: string): string | null {
 }
 
 function stripCDATA(s: string): string {
-  return s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim()
+  return decodeHTMLEntities(s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim())
+}
+
+function decodeHTMLEntities(s: string): string {
+  return s
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;/gi, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .trim()
 }
 
 // ── Classification ─────────────────────────────────────────────────────────

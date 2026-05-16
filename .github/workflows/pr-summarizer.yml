@@ -1,83 +1,20 @@
 name: PR Digest Generator
 
+# Dev Digest has been moved to a standalone project.
+# This workflow is intentionally disabled to avoid hitting deleted API endpoints.
+# Re-enable by adding a new workflow when the standalone Dev Digest project is deployed.
+
 on:
-  schedule:
-    - cron: '0 8 * * 0'   # 08:00 UTC every Sunday
   workflow_dispatch:
     inputs:
-      repo_id:
-        description: 'Specific repo ID to digest (leave blank for all)'
+      disabled:
+        description: 'This workflow is disabled. Dev Digest is a separate project.'
         required: false
-        type: string
-      days:
-        description: 'Number of days to look back'
-        required: false
-        default: '7'
-        type: string
 
 jobs:
-  digest:
-    name: Generate PR digests
+  skip:
+    name: Skipped (Dev Digest is a standalone project)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-
     steps:
-      - name: Generate digest for all repos
-        if: github.event.inputs.repo_id == ''
-        run: |
-          # Fetch all connected repos from the API and generate digests
-          repos=$(curl -s \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            "${{ secrets.NEXT_PUBLIC_URL }}/api/repos")
-
-          echo "Connected repos: $repos"
-
-          # Iterate and generate digest for each
-          echo "$repos" | python3 -c "
-          import sys, json, subprocess, os, urllib.request, urllib.error
-
-          repos = json.load(sys.stdin)
-          api_url = os.environ.get('NEXT_API_URL', '${{ secrets.NEXT_PUBLIC_URL }}')
-          secret = '${{ secrets.CRON_SECRET }}'
-          days = '${{ github.event.inputs.days || 7 }}'
-
-          for repo in repos:
-              req = urllib.request.Request(
-                  f'{api_url}/api/reports',
-                  data=json.dumps({'repo_id': repo['id'], 'days': int(days)}).encode(),
-                  headers={'Content-Type': 'application/json', 'Authorization': f'Bearer {secret}'},
-                  method='POST',
-              )
-              try:
-                  with urllib.request.urlopen(req, timeout=60) as r:
-                      print(f'✓ Digest generated for {repo[\"full_name\"]}')
-              except urllib.error.HTTPError as e:
-                  print(f'✗ Failed for {repo[\"full_name\"]}: {e.code}')
-          "
-
-      - name: Generate digest for specific repo
-        if: github.event.inputs.repo_id != ''
-        run: |
-          response=$(curl -s -w "\n%{http_code}" -X POST \
-            "${{ secrets.NEXT_PUBLIC_URL }}/api/reports" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            -H "Content-Type: application/json" \
-            -d "{\"repo_id\": \"${{ github.event.inputs.repo_id }}\", \"days\": ${{ github.event.inputs.days || 7 }}}")
-
-          status=$(echo "$response" | tail -n 1)
-          echo "Digest generation status: $status"
-
-          if [ "$status" != "201" ]; then
-            echo "Failed to generate digest"
-            exit 1
-          fi
-
-      - name: Notify on failure
-        if: failure()
-        run: |
-          echo "PR digest generation failed — check logs"
-          if [ -n "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
-            curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
-              -H "Content-Type: application/json" \
-              -d '{"text": ":x: Molocule PR digest generation failed. Check GitHub Actions logs."}'
-          fi
+      - name: Workflow disabled
+        run: echo "Dev Digest has moved to its own project. This workflow does nothing."

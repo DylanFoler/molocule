@@ -29,7 +29,9 @@ export async function GET() {
         ?.detected_at ?? null,
   }))
 
-  return NextResponse.json(companies)
+  return NextResponse.json(companies, {
+    headers: { 'Cache-Control': 'private, no-cache' },
+  })
 }
 
 export async function POST(req: NextRequest) {

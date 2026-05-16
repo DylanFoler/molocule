@@ -64,7 +64,7 @@ function cleanCompanyName(rawTitle: string | null, fallbackInput: string, websit
     if (startsWithSep) return fromHostname
   }
 
-  // Full title is short and clean, no separator characters — use it
+  // Full title is short and clean, no separator characters, use as-is
   const hasSeparator = title.includes('|') || title.includes(':') || title.includes('–') || title.includes('—')
   if (title.length <= 28 && !TAGLINE_RE.test(title) && !hasSeparator) return title
 
@@ -130,24 +130,25 @@ async function fetchSiteMetadata(url: string): Promise<{
   }
 }
 
-// Try common RSS paths when the page didn't declare one
+// Probe common RSS paths in parallel, return the first hit, bail after 2.5s
 async function guessRssUrl(baseUrl: string): Promise<string | null> {
   const origin = (() => { try { return new URL(baseUrl).origin } catch { return null } })()
   if (!origin) return null
 
-  for (const path of RSS_GUESSES) {
-    try {
-      const res = await fetch(origin + path, {
-        signal: AbortSignal.timeout(3000),
-        headers: { 'User-Agent': 'Molocule-Enricher/1.0' },
-      })
-      if (res.ok) {
-        const ct = res.headers.get('content-type') ?? ''
-        if (/xml|rss|atom/.test(ct)) return origin + path
-      }
-    } catch { /* try next */ }
-  }
-  return null
+  const checks = RSS_GUESSES.map(path =>
+    fetch(origin + path, {
+      signal: AbortSignal.timeout(2500),
+      headers: { 'User-Agent': 'Molocule-Enricher/1.0' },
+      method: 'HEAD', // HEAD is faster, just check status + content-type
+    }).then(res => {
+      const ct = res.headers.get('content-type') ?? ''
+      if (res.ok && /xml|rss|atom/.test(ct)) return origin + path
+      return null
+    }).catch(() => null)
+  )
+
+  const results = await Promise.all(checks)
+  return results.find(r => r !== null) ?? null
 }
 
 async function findGithubOrg(name: string, token?: string): Promise<string | null> {

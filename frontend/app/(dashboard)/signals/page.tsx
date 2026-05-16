@@ -18,8 +18,8 @@ const FILTER_TYPES: Array<{ value: SignalType | 'ALL'; label: string }> = [
 ]
 
 export default function SignalsPage() {
-  const [signals,    setSignals]    = useState<Signal[]>(() => getCached<Signal[]>('signals-all') ?? [])
-  const [loading,    setLoading]    = useState(() => getCached('signals-all') === null)
+  const [signals,    setSignals]    = useState<Signal[]>(() => getCached<Signal[]>('signals-ALL') ?? [])
+  const [loading,    setLoading]    = useState(() => getCached('signals-ALL') === null)
   const [typeFilter, setTypeFilter] = useState<SignalType | 'ALL'>('ALL')
 
   useEffect(() => {

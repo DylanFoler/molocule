@@ -124,17 +124,17 @@ export function CompanyCard({ company, onDelete, onUpdate, signalTypes, onScanCo
             )}
           </div>
 
-          {/* Scan + edit + delete controls */}
+          {/* Scan + edit + delete controls — stopPropagation prevents the card's navigation onClick */}
           <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={e => e.preventDefault()}>
-            <button onClick={e => { e.preventDefault(); handleScan() }} disabled={scanning} title="Scan for new signals"
+            onClick={e => { e.preventDefault(); e.stopPropagation() }}>
+            <button onClick={e => { e.stopPropagation(); handleScan() }} disabled={scanning} title="Scan for new signals"
               className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.45)' }}
               onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.9)')}
               onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.45)')}>
               <RefreshCw className={`w-3.5 h-3.5 ${scanning ? 'animate-spin' : ''}`} />
             </button>
-            <button onClick={e => { e.preventDefault(); setEditOpen(true) }} title="Edit company"
+            <button onClick={e => { e.stopPropagation(); setEditOpen(true) }} title="Edit company"
               className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.45)' }}
               onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.9)')}
@@ -142,7 +142,7 @@ export function CompanyCard({ company, onDelete, onUpdate, signalTypes, onScanCo
               <Pencil className="w-3 h-3" />
             </button>
             {onDelete && (
-              <button onClick={e => { e.preventDefault(); onDelete(company.id) }}
+              <button onClick={e => { e.stopPropagation(); onDelete(company.id) }}
                 className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold transition-colors"
                 style={{ color: 'rgba(255,255,255,0.3)', border: '1px solid rgba(255,255,255,0.07)' }}
                 onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(248,113,113,0.8)')}

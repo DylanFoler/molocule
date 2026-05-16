@@ -4,8 +4,9 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2, Sparkles, Trash2 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
+import { setCached } from '@/lib/page-cache'
 
-export function LoadDemoButton({ variant = 'full' }: { variant?: 'full' | 'compact' }) {
+export function LoadDemoButton({ variant = 'full', onLoad }: { variant?: 'full' | 'compact'; onLoad?: () => void }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [clearing, setClearing] = useState(false)
@@ -15,15 +16,17 @@ export function LoadDemoButton({ variant = 'full' }: { variant?: 'full' | 'compa
     try {
       const res = await fetch('/api/demo/seed', { method: 'POST' })
       const data = await res.json()
-      if (data.already_seeded) {
-        toast({ title: 'Demo already loaded', description: 'Refreshing to show your data.' })
-      } else {
-        toast({
-          title: `Demo loaded`,
-          description: `${data.companies} companies, ${data.signals} signals, and 1 digest are ready.`,
-        })
-      }
+      toast({
+        title: 'Demo loaded',
+        description: `${data.companies ?? 8} companies and ${data.signals ?? 18} signals are ready.`,
+      })
+      // Bust all caches so every client page re-fetches fresh data
+      setCached('companies', null)
+      setCached('signals-ALL', null)
+      setCached('signals-500', null)
+      setCached('signals-200', null)
       router.refresh()
+      onLoad?.()
     } catch {
       toast({ title: 'Could not load demo', variant: 'destructive' })
     } finally {
@@ -34,7 +37,8 @@ export function LoadDemoButton({ variant = 'full' }: { variant?: 'full' | 'compa
   async function handleClear() {
     setClearing(true)
     try {
-      await fetch('/api/demo/seed', { method: 'DELETE' })
+      const res = await fetch('/api/demo/seed', { method: 'DELETE' })
+      if (!res.ok) throw new Error()
       toast({ title: 'Demo data cleared' })
       router.refresh()
     } catch {
