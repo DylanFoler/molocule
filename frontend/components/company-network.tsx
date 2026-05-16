@@ -75,11 +75,11 @@ function areRivals(a: Company, b: Company): boolean {
 function signalsMentionEachOther(sigsA: Signal[], companyB: Company, sigsB: Signal[], companyA: Company): { title: string; signal: Signal } | null {
   for (const s of sigsA) {
     const text = (s.title + ' ' + (s.summary ?? '')).toLowerCase()
-    if (text.includes(companyB.name.toLowerCase())) return { title: s.title.slice(0, 70), signal: s }
+    if (text.includes(companyB.name.toLowerCase())) return { title: s.title, signal: s }
   }
   for (const s of sigsB) {
     const text = (s.title + ' ' + (s.summary ?? '')).toLowerCase()
-    if (text.includes(companyA.name.toLowerCase())) return { title: s.title.slice(0, 70), signal: s }
+    if (text.includes(companyA.name.toLowerCase())) return { title: s.title, signal: s }
   }
   return null
 }
@@ -87,29 +87,46 @@ function signalsMentionEachOther(sigsA: Signal[], companyB: Company, sigsB: Sign
 // ── Build unique signal-mention detail based on actual mention content ─────
 function buildSignalMentionDetail(nameA: string, nameB: string, mentionTitle: string, signal: Signal): string {
   const m = (mentionTitle + ' ' + (signal.summary ?? '')).toLowerCase()
+  // Use the signal's existing AI insight to ground the analysis when available
+  const insight = signal.llm_insight ? `Context on this signal: ${signal.llm_insight}` : null
 
+  if (/exploit|vulnerabil|hack|breach|malware|attack|patch|cve|zero.?day|security|flaw/.test(m)) {
+    const inference = insight ?? `When a security incident names two companies in the same story, it typically means their technology stacks are intersecting in ways neither company fully controls. The company whose product enabled the attack (as a tool or target) faces the harder question: whether to restrict that capability, partner defensively, or accept that AI-assisted vulnerability discovery is now a permanent part of their threat landscape.`
+    return `A security story named both ${nameA} and ${nameB}: "${mentionTitle}". ${inference} If AI tools are now being used to find hardware or software vulnerabilities at scale, both companies should expect this to be the first of multiple incidents, not a one-off, and their next responsible-disclosure or security-update announcement will signal how seriously each is taking the threat vector.`
+  }
   if (/chip|semiconductor|silicon|manufactur|supply.?chain|foundry|wafer|fab/.test(m)) {
-    return `A supply chain story named both ${nameA} and ${nameB} in the same context: "${mentionTitle}". This places the two companies in a direct hardware dependency relationship, not just a competitive one. If this connection deepens, expect formal contract or design-win announcements from ${nameA} within the next two quarters, as supply chain co-mentions typically lead official disclosures by 6 to 12 months.`
+    const inference = insight ?? `Hardware supply chain co-mentions between two companies almost always precede formal contract or design-win announcements. The fact that both ${nameA} and ${nameB} are named together means a dependency or partnership is already being evaluated at the engineering level, even if it has not surfaced commercially.`
+    return `A supply chain story named both ${nameA} and ${nameB}: "${mentionTitle}". ${inference} Supply chain relationships at this layer typically take 12 to 18 months to convert into publicly announced deals. If you are tracking either company for enterprise or investment purposes, a formal announcement from ${nameA} in the next two quarters is the next signal to watch.`
   }
   if (/acqui|merger|deal|takeover|buyout|acquire/.test(m)) {
-    return `${nameA} and ${nameB} appear together in an M&A context: "${mentionTitle}". Deal-adjacent coverage naming two specific companies means bankers or advisors are already running models, even if nothing is confirmed. Watch ${nameA} and ${nameB} board composition changes, advisor appointments, and executive travel over the next 60 days as the most reliable early confirming signals.`
+    const inference = insight ?? `Deal-adjacent coverage naming both ${nameA} and ${nameB} means someone in the market is already modeling a transaction, even if neither company has confirmed anything. Bankers, investors, and advisors typically start positioning 6 to 12 months before a deal surfaces publicly.`
+    return `${nameA} and ${nameB} appeared together in an M&A context: "${mentionTitle}". ${inference} The confirming signals to watch over the next 60 days: board composition changes at either company, new financial advisors listed in public filings, and whether either company's executive team goes quiet on public appearances, which often signals active deal negotiations.`
   }
   if (/partner|collaborat|integrat|alliance|joint/.test(m)) {
-    return `A partnership story tied ${nameA} and ${nameB} together: "${mentionTitle}". If this integration formalizes, it will shift the competitive surface for any vendor selling adjacent to either company. Expect a joint go-to-market announcement or co-sell agreement within 60 to 90 days if both executive teams are aligned on the opportunity.`
+    const inference = insight ?? `A partnership story linking ${nameA} and ${nameB} means at minimum that both companies see commercial value in being associated. Formal integrations in the ${signal.type === 'PRODUCT_LAUNCH' ? 'product' : 'go-to-market'} layer typically follow initial press coverage within 60 to 90 days if executive alignment exists.`
+    return `A partnership story tied ${nameA} and ${nameB} together: "${mentionTitle}". ${inference} The most meaningful downstream signal: whether each company's sales team starts referencing the other in customer conversations. That adoption in the field, not a press release, is what makes a partnership commercially real.`
   }
   if (/regulat|antitrust|ftc|doj|investig|fine|sanction|scrutin/.test(m)) {
-    return `Both ${nameA} and ${nameB} surfaced in the same regulatory story: "${mentionTitle}". When two companies are named together in regulatory coverage, the company with the smaller legal and compliance team faces disproportionate distraction. Watch which one slows roadmap execution over the next two quarters as an indirect measure of exposure.`
+    const inference = insight ?? `Regulatory coverage naming both ${nameA} and ${nameB} in the same story means a regulator or reporter is already treating them as part of the same market concentration question. The company with fewer regulatory resources faces disproportionate distraction during any investigation or proceeding.`
+    return `Both ${nameA} and ${nameB} appeared in the same regulatory story: "${mentionTitle}". ${inference} Watch which company's product roadmap slows over the next two quarters. Engineering and legal teams compete for the same executive attention during regulatory proceedings, and whichever company loses more roadmap velocity will cede ground to competitors that are not named.`
   }
   if (/fund|invest|valuat|round|capital|series|raise/.test(m)) {
-    return `${nameA} and ${nameB} appeared together in a capital markets story: "${mentionTitle}". When investors benchmark two companies in the same analysis, it signals portfolio-level positioning rather than isolated bets. Whichever company closes its round first in this cycle will likely use that credibility to accelerate enterprise contract conversations before the other can respond.`
+    const inference = insight ?? `Investors benchmarking ${nameA} and ${nameB} in the same analysis signals they are competing for space in the same portfolio thesis or sector allocation. When both companies appear in the same capital markets story, the market is treating them as alternatives rather than complements.`
+    return `${nameA} and ${nameB} were benchmarked together in a capital markets story: "${mentionTitle}". ${inference} Whichever company closes its next round first typically uses that validation to accelerate enterprise sales conversations. Track announced closing dates and new investor names closely: a shared investor between both companies would shift this from competition to a managed portfolio dynamic.`
   }
-  if (/compet|rival|vs\.|versus|battle|war|beat|lose|win|market.?share/.test(m)) {
-    return `A competitive intelligence story directly framed ${nameA} against ${nameB}: "${mentionTitle}". Media framing like this sharpens customer evaluation cycles at both companies almost immediately. Expect one of them to respond with a pricing page update, a case study targeting the other's customer segment, or a product announcement within the next 30 to 60 days.`
+  if (/compet|rival|vs\.|versus|market.?share/.test(m)) {
+    const inference = insight ?? `When editorial coverage directly frames ${nameA} against ${nameB}, it accelerates customer evaluation timelines at both companies. Buyers who were passive about switching or evaluating become active, and both sales teams will feel the pressure within the next sales cycle.`
+    return `A competitive story directly framed ${nameA} against ${nameB}: "${mentionTitle}". ${inference} Expect at least one of these companies to respond with a concrete market signal in the next 30 to 45 days: a pricing change, a new customer case study targeting the other's segment, or a product announcement that directly addresses the comparison being made.`
   }
   if (/hire|appoint|join|exec|ceo|cto|vp|chief|head.?of/.test(m)) {
-    return `A leadership story tied ${nameA} and ${nameB} together: "${mentionTitle}". The specific domain this executive brings (operations, sales, product, or engineering) predicts exactly which capability the hiring company is about to accelerate. If the function matches a known gap, expect a visible output in that area within 6 months.`
+    const inference = insight ?? `An executive move naming both ${nameA} and ${nameB} in the same story reveals the direction competitive talent is flowing and which company is on offense. The function of the hire predicts the exact domain where the receiving company is about to invest.`
+    return `A leadership story linked ${nameA} and ${nameB}: "${mentionTitle}". ${inference} The function this executive held at their previous company is the clearest predictor of what changes in the next 12 months at the destination. If this is a commercial hire, expect new enterprise packaging and territory structure. If technical, expect a platform shift or architectural bet within the next product cycle.`
   }
-  return `A news story named both ${nameA} and ${nameB} in the same context: "${mentionTitle}". When two companies appear together in editorial coverage that is not directly about either of them, it almost always means an analyst, investor, or reporter is benchmarking them against each other. Run a follow-up search for both company names in the same query over the next two weeks. A second co-mention in a different publication within 30 days is a strong signal that this link is now part of the market's working model of the space.`
+  // Default: use the signal's own insight to anchor the description
+  const baseContext = insight
+    ? `${insight} This cross-mention means ${nameA} and ${nameB} are now part of the same story in ways that are likely to compound over time.`
+    : `${nameA} and ${nameB} appearing in the same story is the earliest signal that the market is beginning to evaluate them in the same context. The first cross-mention is a data point; the second, from a different source, is a pattern.`
+  return `A news story named both ${nameA} and ${nameB}: "${mentionTitle}". ${baseContext} Watch for a second independent co-mention in a different publication within 30 days. If it appears, treat this connection as structurally embedded in how analysts and reporters are modeling this market.`
 }
 
 // ── Build unique COMPETITIVE detail, uses actual signals for non-hardcoded pairs
