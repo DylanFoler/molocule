@@ -7,17 +7,66 @@ function getClient() {
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 }
 
-// Fallbacks are specific to the signal type + pull key detail from title when possible
+// Fallbacks parse the title for specific keywords and derive an actual implication
 function buildFallback(type: SignalType, title: string, company: string): string {
-  const t = title.slice(0, 120)
-  const fallbacks: Record<SignalType, string> = {
-    FUNDING:        `${company} has new capital, which means accelerated hiring and product investment are likely in the next 12 to 18 months.`,
-    KEY_HIRE:       `New leadership at ${company} means strategy and vendor decisions may shift. Reach out before the new executive settles into existing relationships.`,
-    LAYOFF:         `${company} is cutting costs. Decision-makers are under pressure and may be open to efficiency-focused solutions that reduce overhead.`,
-    PRODUCT_LAUNCH: `${company} shipped something new. Assess whether it competes with or complements your current offering before customers ask you about it.`,
-    GENERAL:        `${t}. Monitor for follow-on signals that confirm whether this is a directional shift or a one-off event.`,
+  const t = title.toLowerCase()
+
+  if (type === 'FUNDING') {
+    const amt = title.match(/\$[\d,.]+\s*[BMbm](?:illion)?/)?.[0]
+    return amt
+      ? `${company} closed ${amt} in new capital, signaling an aggressive growth phase. Expect hiring and product velocity to accelerate over the next two quarters as that capital is deployed.`
+      : `${company} has new capital, which means accelerated hiring and product investment are likely in the next 12 to 18 months.`
   }
-  return fallbacks[type]
+
+  if (type === 'KEY_HIRE') {
+    const role = title.match(/\b(ceo|cto|coo|cfo|cpo|vp|svp|evp|chief [a-z]+ officer|president|head of [a-z]+)\b/i)?.[0]
+    return role
+      ? `A ${role.toLowerCase()} change at ${company} means the strategy and vendor relationships this person controls are in flux for the next 90 days before the new executive sets direction.`
+      : `New senior leadership at ${company} means strategy and vendor decisions may shift. The first 90 days are when new executives reset priorities and existing relationships are most at risk.`
+  }
+
+  if (type === 'LAYOFF') {
+    const pct = title.match(/(\d+)%/)?.[1]
+    const count = title.match(/(\d[\d,]+)\s+(?:employees|workers|staff|jobs)/i)?.[1]
+    return pct
+      ? `${company} cutting ${pct}% of headcount signals a significant operational reset. Remaining teams will face increased scope and reduced bandwidth, which affects roadmap commitments and deal timelines.`
+      : count
+      ? `${company} cutting ${count} employees signals a significant operational reset. Remaining teams will carry increased scope, which affects roadmap commitments and deal timelines.`
+      : `${company} is cutting costs. The teams that survive will carry increased scope and reduced bandwidth, which directly affects any roadmap commitments or active deals in flight.`
+  }
+
+  if (type === 'PRODUCT_LAUNCH') {
+    return `${company} shipped something new. The immediate question is whether this directly overlaps with adjacent products in your market or opens a gap for competitors who were waiting for ${company} to move first.`
+  }
+
+  // GENERAL: parse the title for a specific implication rather than generic text
+  if (/limit|restrict|cap|tighten|throttl|block|suspend|ban/.test(t)) {
+    return `${company} restricting access signals either supply-side pressure or a deliberate push toward a higher-margin customer segment. A pricing restructure or new enterprise tier is likely within 60 days.`
+  }
+  if (/partner|integrat|alliance|deal with|team(?:s| up) with/.test(t)) {
+    return `${company} forming a partnership creates a new distribution surface that changes the competitive dynamics for anyone selling adjacent to either company. Evaluate whether this closes or opens a gap for your positioning.`
+  }
+  if (/acqui|merger|buys|acquires/.test(t)) {
+    return `${company} completing an acquisition restructures its product surface and executive priorities for at least 12 months. Accounts that were locked in may now be in play as the combined entity resets its roadmap.`
+  }
+  if (/ipo|goes public|s-1|files.*sec|public offering/.test(t)) {
+    return `${company} moving toward a public listing means the executive team will be focused on financial metrics and investor narrative for the next 6 to 12 months, which typically slows product risk-taking and partnership flexibility.`
+  }
+  if (/price|pricing|raises price|fee increase|cost increase/.test(t)) {
+    return `${company} increasing prices signals the company believes its market position is strong enough to test price elasticity. Customers who are price-sensitive are now actively evaluating alternatives.`
+  }
+  if (/expand|launch(?:es)? in|enter|opens? in|new market|new region/.test(t)) {
+    return `${company} entering a new market or region shifts where its sales and product resources are focused, which can create both new competitive pressure and new partnership opportunities in the target geography.`
+  }
+  if (/cut|shut|clos|exit|discontinu|end of/.test(t)) {
+    return `${company} cutting or shutting down a product or market creates an immediate displacement event for its existing customers, who are now actively evaluating what to move to.`
+  }
+  if (/invest|bet|back|fund(?:s|ed)?.*startup/.test(t)) {
+    return `${company} investing in or backing another company reveals where its strategic bets are, which is often a more reliable signal of future product direction than any roadmap announcement.`
+  }
+  // Last-resort fallback: extract the core action from the title
+  const cleanTitle = title.replace(/\s*[-–|]\s*.{0,30}$/, '').trim()
+  return `${cleanTitle}. This signals a deliberate shift in how ${company} operates or positions itself, which is worth reading against their recent product and hiring moves to understand the full direction.`
 }
 
 export async function analyzeSignal(params: {
@@ -35,21 +84,27 @@ export async function analyzeSignal(params: {
       max_tokens: 180,
       messages: [{
         role: 'user',
-        content: `You are a senior analyst writing signal insights. Be specific: name numbers, people, and concrete implications. No vague phrases like "worth monitoring" or "opens doors". Do not use em dashes.
+        content: `You are a senior analyst writing signal insights. Your job is to extract the specific implication from this signal, not to tell the reader to monitor anything.
+
+Rules:
+- State what this MEANS, not what to watch for
+- Name numbers, people, and specific products from the headline
+- Never use: monitor, watch for, follow-on, directional shift, worth noting, opens doors, may signal
+- No em dashes. One sentence, max 28 words.
 
 Company: ${params.companyName}
 Signal type: ${params.signalType}
 Headline: ${params.title}
 Details: ${params.summary.slice(0, 400)}
 
-Write exactly ONE sentence (max 28 words). State the specific business implication: who is affected, what decision window this opens, or what risk it signals. Use the actual details above. Use commas or colons instead of dashes.`,
+Write ONE sentence stating the concrete business implication right now, not a suggestion to track something later.`,
       }],
     })
     const content = message.content[0]
     if (content.type !== 'text') return buildFallback(params.signalType, params.title, params.companyName)
     const text = content.text.trim()
-    // Reject generic outputs and fall back
-    if (/worth monitoring|opens doors|may signal|good time to/i.test(text)) {
+    // Reject any output that tells the user to monitor/watch rather than stating the implication
+    if (/monitor|watch for|follow.?on|worth noting|opens doors|may signal|good time to|directional shift|keep an eye/i.test(text)) {
       return buildFallback(params.signalType, params.title, params.companyName)
     }
     return text
