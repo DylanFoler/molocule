@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase'
 import { analyzeSignal } from '@/lib/claude'
+import { getSearchTerms } from '@/lib/company-aliases'
 import type { SignalType } from '@/lib/types'
 
 const HEADERS = { 'User-Agent': 'Molocule/1.0 (signal scanner)' }
@@ -41,14 +42,25 @@ export async function scanCompany(company: {
 }
 
 async function scanGoogleNews(companyId: string, companyName: string): Promise<number> {
-  const q = encodeURIComponent(`"${companyName}"`)
-  const url = `https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`
-  const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(8000) })
-  if (!res.ok) return 0
-  const items = parseRSSItems(await res.text())
-    .filter(i => passesQualityFilter(i.title, i.description ?? '', companyName))
-    .slice(0, 6)
-  return pushSignals(companyId, companyName, items)
+  const searchTerms = getSearchTerms(companyName)
+  let total = 0
+  const seenTitles = new Set<string>()
+
+  for (const term of searchTerms) {
+    const q = encodeURIComponent(`"${term}"`)
+    const url = `https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`
+    try {
+      const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(8000) })
+      if (!res.ok) continue
+      const items = parseRSSItems(await res.text())
+        .filter(i => passesQualityFilter(i.title, i.description ?? '', companyName))
+        .filter(i => !seenTitles.has(i.title))
+        .slice(0, term === companyName ? 6 : 3) // fewer for aliases to avoid noise
+      items.forEach(i => seenTitles.add(i.title))
+      total += await pushSignals(companyId, companyName, items)
+    } catch { /* continue to next term */ }
+  }
+  return total
 }
 
 async function scanHackerNews(companyId: string, companyName: string): Promise<number> {
@@ -78,9 +90,12 @@ async function scanRSS(companyId: string, companyName: string, rssUrl: string): 
 function passesQualityFilter(title: string, body: string, companyName: string): boolean {
   const t = title.toLowerCase(); const b = body.toLowerCase()
 
-  // Must mention the company name
-  const nameSlug = companyName.toLowerCase().split(/\s+/)[0]
-  if (!t.includes(nameSlug)) return false
+  // Must mention the exact company name with word boundaries (prevents "Toast" matching "Toaster")
+  // Use each word of the company name for multi-word names (e.g. "Open AI" -> checks "open" AND "ai")
+  const nameParts = companyName.toLowerCase().split(/\s+/).filter(p => p.length >= 3)
+  const primarySlug = nameParts[0] ?? companyName.toLowerCase()
+  const nameRegex = new RegExp(`\\b${primarySlug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i')
+  if (!nameRegex.test(title)) return false
 
   // Skip short/useless titles
   if (title.trim().length < 20) return false
@@ -91,12 +106,23 @@ function passesQualityFilter(title: string, body: string, companyName: string): 
     /price prediction|will reach \$|target price|analyst rating/,
     /how to buy|where to buy|best crypto/,
     /\bvsco?\b|\binstagram\b|\btiktok\b/,   // wrong company
-    /opinion:|commentary:|letter to/,
+    /opinion:|commentary:|letter to the editor/,
+    /sponsored|advertis|promotion|press release: (?!.*(?:raise|fund|hire|launch|appoint))/i,
+    /we added .* to a |gone too far|you won't believe|vibe cod/i,   // satirical clickbait
+    /stock (?:alert|pick|tip)|buy now|sell now|price target/i,
   ]
   if (noise.some(r => r.test(t) || r.test(b))) return false
 
-  // Skip articles that are purely promotional with no news hook
-  if (/^(top \d+|best \d+|\d+ ways|how to)/i.test(title)) return false
+  // Skip listicles and how-to articles with no news value
+  if (/^(top \d+|best \d+|\d+ ways|how to|guide to|what is )/i.test(title)) return false
+
+  // Skip if title is clearly about a different entity (contains the name only as part of a larger word)
+  // e.g. "LinearB" shouldn't match "Linear", "Toaster" shouldn't match "Toast"
+  const fullMatch = title.match(nameRegex)
+  if (fullMatch && title.toLowerCase().replace(nameRegex, '').trim().length === 0) {
+    // Title is literally just the company name, not an article
+    return false
+  }
 
   return true
 }

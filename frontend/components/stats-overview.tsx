@@ -1,19 +1,17 @@
 'use client'
 
-import { Building2, Zap, TrendingUp, GitPullRequest, FileText } from 'lucide-react'
+import { Building2, Zap, TrendingUp } from 'lucide-react'
 import type { DashboardStats } from '@/lib/types'
 
 const statConfig = [
-  { key: 'total_companies'   as const, label: 'Companies',    icon: Building2 },
-  { key: 'active_signals'    as const, label: 'Signals',      icon: Zap },
-  { key: 'new_signals_today' as const, label: 'New Today',    icon: TrendingUp },
-  { key: 'connected_repos'   as const, label: 'Repos',        icon: GitPullRequest },
-  { key: 'digests_generated' as const, label: 'Digests',      icon: FileText },
+  { key: 'total_companies'   as const, label: 'Companies', icon: Building2  },
+  { key: 'active_signals'    as const, label: 'Signals',   icon: Zap        },
+  { key: 'new_signals_today' as const, label: 'New Today', icon: TrendingUp },
 ]
 
 export function StatsOverview({ stats }: { stats: DashboardStats }) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       {statConfig.map(({ key, label, icon: Icon }, i) => (
         <div key={key}
           className="relative rounded-xl p-4 overflow-hidden cursor-default transition-all duration-300 group"

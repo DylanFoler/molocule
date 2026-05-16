@@ -18,6 +18,8 @@ export interface CompanyEnrichment {
   github_org: string | null
   blog_rss_url: string | null
   favicon_url: string | null
+  linkedin_url: string | null
+  found: { github: boolean; rss: boolean; linkedin: boolean }
 }
 
 export interface Company {
@@ -47,68 +49,6 @@ export interface Signal {
   created_at: string
 }
 
-export interface Repo {
-  id: string
-  user_id: string
-  github_repo_id: string
-  owner: string
-  name: string
-  full_name: string
-  connected_at: string
-  latest_digest?: Digest | null
-}
-
-export interface Digest {
-  id: string
-  repo_id: string
-  repo?: Repo
-  period_start: string
-  period_end: string
-  summary: string
-  pr_count: number
-  merged_count: number
-  open_count: number
-  raw_data: DigestRawData
-  created_at: string
-  avg_cycle_time_hours: number | null
-  avg_review_time_hours: number | null
-  pr_size_distribution: { xs: number; s: number; m: number; l: number }
-  stale_pr_count: number
-  failed_job_names: string[]
-  release_notes: string | null
-}
-
-export interface DigestRawData {
-  prs: PullRequest[]
-  workflow_runs: WorkflowRun[]
-  contributors: string[]
-  key_changes: string[]
-}
-
-export interface PullRequest {
-  number: number
-  title: string
-  author: string
-  state: 'open' | 'closed' | 'merged'
-  url: string
-  merged_at: string | null
-  created_at: string
-  updated_at?: string
-  labels: string[]
-  body: string | null
-  additions?: number
-  deletions?: number
-}
-
-export interface WorkflowRun {
-  id: number
-  name: string
-  status: string
-  conclusion: string | null
-  created_at: string
-  html_url: string
-}
-
 export interface Notification {
   id: string
   user_id: string
@@ -122,8 +62,6 @@ export interface DashboardStats {
   total_companies: number
   active_signals: number
   new_signals_today: number
-  connected_repos: number
-  digests_generated: number
 }
 
 export const SIGNAL_LABELS: Record<SignalType, string> = {

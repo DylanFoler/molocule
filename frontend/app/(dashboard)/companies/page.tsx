@@ -8,14 +8,13 @@ import { PageHeader } from '@/components/page-header'
 import { CompanyForm } from '@/components/company-form'
 import { LoadDemoButton } from '@/components/load-demo-button'
 import { toast } from '@/hooks/use-toast'
-import { useRouter } from 'next/navigation'
+import { getCached, setCached } from '@/lib/page-cache'
 import type { Company, Signal, SignalType } from '@/lib/types'
 
 export default function CompaniesPage() {
-  const router = useRouter()
-  const [companies,   setCompanies]   = useState<Company[]>([])
-  const [signals,     setSignals]     = useState<Signal[]>([])
-  const [loading,     setLoading]     = useState(true)
+  const [companies,   setCompanies]   = useState<Company[]>(() => getCached<Company[]>('companies') ?? [])
+  const [signals,     setSignals]     = useState<Signal[]>(() => getCached<Signal[]>('signals-500') ?? [])
+  const [loading,     setLoading]     = useState(() => getCached('companies') === null)
   const [search,      setSearch]      = useState('')
   const [scanningAll, setScanningAll] = useState(false)
 
@@ -24,8 +23,8 @@ export default function CompaniesPage() {
       fetch('/api/companies'),
       fetch('/api/signals?limit=500'),
     ])
-    if (cRes.ok) setCompanies(await cRes.json())
-    if (sRes.ok) setSignals(await sRes.json())
+    if (cRes.ok) { const d = await cRes.json(); setCached('companies', d); setCompanies(d) }
+    if (sRes.ok) { const d = await sRes.json(); setCached('signals-500', d); setSignals(d) }
     setLoading(false)
   }, [])
 
@@ -38,7 +37,11 @@ export default function CompaniesPage() {
   async function handleDelete(id: string) {
     const res = await fetch(`/api/companies?id=${id}`, { method: 'DELETE' })
     if (res.ok) {
-      setCompanies(c => c.filter(co => co.id !== id))
+      setCompanies(c => {
+        const next = c.filter(co => co.id !== id)
+        setCached('companies', next)
+        return next
+      })
       toast({ title: 'Company removed' })
     }
   }
@@ -55,7 +58,6 @@ export default function CompaniesPage() {
           ? `Scanned ${data.scanned} companies.`
           : `All ${data.scanned} companies are up to date.`,
       })
-      router.refresh()
       await fetchData()
     } catch {
       toast({ title: 'Scan failed', variant: 'destructive' })
@@ -133,6 +135,7 @@ export default function CompaniesPage() {
               key={company.id}
               company={company}
               onDelete={handleDelete}
+              onUpdate={updated => setCompanies(cs => cs.map(c => c.id === updated.id ? { ...c, ...updated } : c))}
               signalTypes={signalTypesByCompany.get(company.id)}
               onScanComplete={fetchData}
             />

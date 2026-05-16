@@ -1,15 +1,15 @@
 'use client'
 
 import { signIn } from 'next-auth/react'
-import { Github, GitPullRequest, TrendingUp, Shield, Sparkles } from 'lucide-react'
+import { Github, TrendingUp, Network, Sparkles, Bell } from 'lucide-react'
 import { GeometricBackground } from '@/components/geometric-background'
 import { MoleculeIcon } from '@/components/ui/molecule-icon'
 
 const features = [
-  { icon: TrendingUp, label: 'Buying Signals' },
-  { icon: GitPullRequest, label: 'PR Digests' },
-  { icon: Sparkles, label: 'AI Insights' },
-  { icon: Shield, label: 'Change Detection' },
+  { icon: TrendingUp, label: 'Buying Signals'   },
+  { icon: Network,    label: 'Company Network'  },
+  { icon: Sparkles,   label: 'AI Insights'      },
+  { icon: Bell,       label: 'Signal Alerts'    },
 ]
 
 export function LoginPage() {
@@ -76,7 +76,7 @@ export function LoginPage() {
           <div className="p-6">
             <p className="text-[13px] font-semibold mb-1" style={{ color: 'rgba(255,255,255,0.88)' }}>Sign in to continue</p>
             <p className="text-[11px] leading-relaxed mb-5" style={{ color: 'rgba(255,255,255,0.38)' }}>
-              Connect GitHub to track company signals and generate PR digests.
+              Connect GitHub to start tracking company signals.
             </p>
 
             <button
@@ -102,7 +102,7 @@ export function LoginPage() {
         </div>
 
         <p className="text-[10px] text-center mt-5 tracking-[0.18em] uppercase" style={{ color: 'rgba(255,255,255,0.15)' }}>
-          Built for signal tracking &amp; engineering teams
+          Company intelligence, built for sharp analysts
         </p>
       </div>
     </div>

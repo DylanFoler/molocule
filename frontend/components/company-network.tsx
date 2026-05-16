@@ -72,25 +72,133 @@ function areRivals(a: Company, b: Company): boolean {
 }
 
 // ── Cross-mention detection ────────────────────────────────────────────────
-function signalsMentionEachOther(sigsA: Signal[], companyB: Company, sigsB: Signal[], companyA: Company): string | null {
+function signalsMentionEachOther(sigsA: Signal[], companyB: Company, sigsB: Signal[], companyA: Company): { title: string; signal: Signal } | null {
   for (const s of sigsA) {
     const text = (s.title + ' ' + (s.summary ?? '')).toLowerCase()
-    if (text.includes(companyB.name.toLowerCase())) return `"${s.title.slice(0, 70)}"`
+    if (text.includes(companyB.name.toLowerCase())) return { title: s.title.slice(0, 70), signal: s }
   }
   for (const s of sigsB) {
     const text = (s.title + ' ' + (s.summary ?? '')).toLowerCase()
-    if (text.includes(companyA.name.toLowerCase())) return `"${s.title.slice(0, 70)}"`
+    if (text.includes(companyA.name.toLowerCase())) return { title: s.title.slice(0, 70), signal: s }
   }
   return null
 }
 
+// ── Build unique signal-mention detail based on actual mention content ─────
+function buildSignalMentionDetail(nameA: string, nameB: string, mentionTitle: string, signal: Signal): string {
+  const m = (mentionTitle + ' ' + (signal.summary ?? '')).toLowerCase()
+
+  if (/chip|semiconductor|silicon|manufactur|supply.?chain|foundry|wafer|fab/.test(m)) {
+    return `A supply chain story named both ${nameA} and ${nameB} in the same context: "${mentionTitle}". This places the two companies in a direct hardware dependency relationship, not just a competitive one. Supply chain co-mentions precede contract announcements or design wins that rarely surface officially until months after the first press signal.`
+  }
+  if (/acqui|merger|deal|takeover|buyout|acquire/.test(m)) {
+    return `${nameA} and ${nameB} appear together in an M&A context: "${mentionTitle}". Deal-adjacent coverage naming two specific companies is one of the strongest co-mention signals, indicating that bankers or analysts are already running scenario models. Watch for follow-on coverage and executive travel patterns as confirming signals.`
+  }
+  if (/partner|collaborat|integrat|alliance|joint/.test(m)) {
+    return `A partnership story tied ${nameA} and ${nameB} together: "${mentionTitle}". Technical integrations or go-to-market alliances between these two companies would shift the competitive surface for anyone selling into the same space. Partnership signals typically lead to joint announcements within 60 to 90 days of first press mention.`
+  }
+  if (/regulat|antitrust|ftc|doj|investig|fine|sanction|scrutin/.test(m)) {
+    return `Both ${nameA} and ${nameB} surfaced in the same regulatory story: "${mentionTitle}". A single ruling or investigation that names both companies simultaneously can reshape the competitive landscape for the entire sector, not just the two firms named. Monitor for follow-on filings or executive testimony that might clarify which company faces greater exposure.`
+  }
+  if (/fund|invest|valuat|round|capital|series|raise/.test(m)) {
+    return `${nameA} and ${nameB} appeared together in a capital markets story: "${mentionTitle}". When investors benchmark two companies in the same analysis, it signals they are competing for space in the same portfolio thesis or sector allocation. Whichever company closes its round first typically gains a credibility advantage in the next enterprise sales cycle.`
+  }
+  if (/compet|rival|vs\.|versus|battle|war|beat|lose|win|market.?share/.test(m)) {
+    return `A competitive intelligence story directly pitted ${nameA} against ${nameB}: "${mentionTitle}". When media frames two companies as adversaries in a single story, it tends to sharpen customer evaluation cycles and accelerate deal timelines at both. Watch for changes in pricing pages, sales messaging, or product roadmaps at either company as a response.`
+  }
+  if (/hire|appoint|join|exec|ceo|cto|vp|chief|head.?of/.test(m)) {
+    return `A leadership or talent story tied ${nameA} and ${nameB} together: "${mentionTitle}". Executive moves that name two companies in the same headline reveal which direction competitive domain expertise is flowing. Senior hires from a rival are often the first visible signal of a strategic pivot that will take 6 to 12 months to manifest in product.`
+  }
+  // Default: generic but still specific to the actual mention
+  return `A news story named both ${nameA} and ${nameB} in the same context: "${mentionTitle}". Independent editorial coverage that links two companies in a single story indicates analysts or reporters are already treating them as part of the same narrative. Track the story thread over the next 30 days to see if the connection develops into a deal, rivalry, or structural market shift.`
+}
+
+// ── Build unique COMPETITIVE detail — uses actual signals for non-hardcoded pairs ──
+function buildCompetitiveDetail(nameA: string, nameB: string, sigsA: Signal[], sigsB: Signal[], industry: string): string {
+  const key = [nameA, nameB].map(n => n.toLowerCase()).sort().join('|')
+
+  const rivalryMap: Record<string, string> = {
+    'anthropic|openai': `Anthropic and OpenAI are racing to own the enterprise AI model layer, competing for the same API contracts, safety credibility, and frontier research talent. Both have built their entire positioning around trustworthy AI, which means a reputational event at either company directly affects buyer confidence in the other. Every model release, benchmark result, or safety incident from one sets the reference point customers use to evaluate the other.`,
+    'brex|ramp': `Brex and Ramp are the two dominant challengers in the corporate card and spend management space, both targeting the same fast-growing startup and SMB customer. Their feature sets have converged almost entirely, which means sales cycles are now won on pricing, integrations, and relationship rather than product differentiation. Watch expense policy changes, bank partnership announcements, and sales headcount additions as the signals that predict which team is pressing harder.`,
+    'brex|stripe': `Stripe and Brex started in different layers of the financial stack but are converging on the same B2B customer. Stripe's push into corporate cards and Brex's expansion into API banking products means every new enterprise deal is increasingly contested between them. Product announcements and partnership agreements from either company are direct signals of where the next overlap will emerge.`,
+    'openai|perplexity': `OpenAI and Perplexity are competing to become the default AI search and answer layer for consumers and knowledge workers. Perplexity's growth threatens the same user session time that OpenAI's ChatGPT depends on for consumer revenue. Any feature that blurs the line between search and generation from either team reshapes the other's go-to-market positioning overnight.`,
+    'anthropic|cohere': `Anthropic and Cohere are both selling enterprise-grade LLM infrastructure but with different risk profiles. Anthropic leads on safety narrative while Cohere leads on data privacy and on-premise deployment. Enterprise RFPs increasingly require evaluation of both, which means every model capability update or pricing change from one is a signal the other's sales team is already briefing customers on.`,
+    'vercel|cloudflare': `Vercel and Cloudflare are converging on the same edge compute and frontend deployment market from opposite directions. Vercel owns the developer experience layer while Cloudflare owns the network. As both add capabilities in the other's core territory, customer lock-in is becoming the primary competitive weapon, and pricing moves from either side will accelerate consolidation.`,
+    'vercel|netlify': `Vercel and Netlify were the two defining platforms of the Jamstack era and remain the primary reference points for enterprise frontend deployment decisions. Vercel has pulled ahead on Next.js adoption and enterprise sales, but Netlify's framework-agnostic positioning and build tooling keep it relevant for teams not on Next.js. Pricing changes, enterprise tier additions, and framework partnership announcements from either are direct signals of where the next sales contest will happen.`,
+    'figma|adobe': `Adobe acquired Figma and then walked away from the deal under regulatory pressure, leaving both companies in direct competition with significant context about each other's roadmaps. Adobe is rebuilding its design tooling as a direct response to Figma's dominance, and Figma is expanding into presentation and whiteboarding to reduce Adobe's surface area for attack. Every product announcement from either company should be read as a deliberate move in a market where both teams already know the other's playbook.`,
+    'figma|sketch': `Figma made Sketch's desktop-only model obsolete, forcing Sketch into a web offering and subscription pivot that has not fully closed the gap. The two products still share a significant population of designers who evaluate both for new team rollouts. Figma's enterprise expansion is the primary pressure Sketch must respond to, and any new Sketch feature that matches Figma's collaboration capabilities is a direct signal that the gap is narrowing.`,
+    'rippling|gusto': `Rippling and Gusto are competing to own the HR and payroll stack for SMBs and mid-market companies, but from opposite strategic angles. Gusto leads on simplicity and bookkeeper partnerships while Rippling leads on system integration and automation depth. As both companies move upmarket the overlap is increasing, and every new integration or vertical add-on from either team is a direct competitive move against the other's account base.`,
+    'rippling|workday': `Rippling is the most credible challenger to Workday's position in the HR and workforce management platform market, specifically targeting the segment Workday has historically underserved with its complexity and cost. Rippling's modular pricing and automation-first architecture appeals to companies that have outgrown Gusto but do not want Workday's overhead. Every enterprise feature Rippling ships is a signal it is moving up into Workday's core customer bracket.`,
+    'linear|notion': `Linear and Notion are the two most-discussed tools in the product and engineering workflow space, each capturing a different end of the spectrum. Linear wins on opinionated engineering workflow while Notion wins on flexibility and documentation. As Linear adds docs and Notion adds structured project tracking, every feature release in the other's core domain is a signal of strategic convergence worth tracking closely.`,
+    'stripe|paypal': `Stripe and PayPal represent the new and old guard of internet payments infrastructure, competing for the same merchant and developer accounts from fundamentally different brand positions. PayPal's consumer brand is a liability with developers while Stripe's enterprise pricing is a liability with SMBs. Checkout conversion rate studies, enterprise contract wins, and API pricing changes are the most direct signals of competitive pressure between them.`,
+    'stripe|square': `Stripe and Square started on opposite sides of the payments world and have been growing toward each other for years. Square's developer tools and Stripe's point-of-sale push have created a genuine overlap zone for businesses that operate both online and in-person. Every new integration from either company in the other's core channel is a signal that the contested middle ground is widening.`,
+  }
+
+  if (rivalryMap[key]) return rivalryMap[key]
+
+  // Not in the hardcoded map: build from actual signal data so it is specific to these companies
+  const typeVerb: Record<string, string> = {
+    FUNDING: 'raised capital', KEY_HIRE: 'made a key hire',
+    LAYOFF: 'announced a layoff', PRODUCT_LAUNCH: 'shipped a new product', GENERAL: 'had a notable development',
+  }
+  const latestA = sigsA[0]; const latestB = sigsB[0]
+  if (latestA && latestB) {
+    const verbA = typeVerb[latestA.type] ?? 'had a development'
+    const verbB = typeVerb[latestB.type] ?? 'had a development'
+    return `${nameA} and ${nameB} compete directly in the ${industry} space. Most recently, ${nameA} ${verbA} ("${latestA.title.slice(0, 55)}") while ${nameB} ${verbB} ("${latestB.title.slice(0, 55)}"). Track both together because moves at one company tend to create response pressure at the other within 60 to 90 days.`
+  }
+  return `${nameA} and ${nameB} compete directly in the ${industry} space for overlapping customers and budget. Add more signals for both companies to see how their moves interact and anticipate responses in real time.`
+}
+
+// ── Build unique INDUSTRY_PEER detail from actual matched signal titles ────
+function buildIndustryPeerDetail(nameA: string, nameB: string, sigsA: Signal[], sigsB: Signal[], industryA: string, sharedType: string): string {
+  const matchA = sigsA.find(s => s.type === sharedType)
+  const matchB = sigsB.find(s => s.type === sharedType)
+
+  if (sharedType === 'FUNDING') {
+    const amtA = matchA?.title?.match(/\$[\d,.]+\s*[BMbm](?:illion)?/)?.[0]
+    const amtB = matchB?.title?.match(/\$[\d,.]+\s*[BMbm](?:illion)?/)?.[0]
+    const line1 = amtA && amtB
+      ? `${nameA} (${amtA}) and ${nameB} (${amtB}) both raised capital in the same period in the ${industryA} space.`
+      : matchA && matchB
+      ? `${nameA} and ${nameB} both raised capital in the ${industryA} space in the same window: "${matchA.title.slice(0, 55)}" and "${matchB.title.slice(0, 55)}".`
+      : `${nameA} and ${nameB} both raised capital in the ${industryA} space in the same window.`
+    return `${line1} Parallel fundraises in the same sector signal investors are backing the category broadly rather than picking a single winner. Track which company deploys that capital into sales and engineering headcount faster, because that velocity gap typically determines enterprise market share 12 to 18 months from now.`
+  }
+
+  if (sharedType === 'KEY_HIRE') {
+    const line1 = matchA && matchB
+      ? `${nameA} and ${nameB} both made senior hires in the ${industryA} space in the same window: "${matchA.title.slice(0, 55)}" and "${matchB.title.slice(0, 55)}".`
+      : `${nameA} and ${nameB} both made senior hires in the ${industryA} space during the same period.`
+    return `${line1} Parallel executive hiring in the same sector typically signals both companies are scaling for the same growth phase, often in response to the same demand signals from enterprise buyers. Compare the functions being hired into: sales-heavy additions signal a land-and-expand push while product or engineering additions signal a differentiation bet against the same customer need.`
+  }
+
+  if (sharedType === 'LAYOFF') {
+    const line1 = matchA && matchB
+      ? `${nameA} and ${nameB} both reduced headcount in the ${industryA} space during the same period: "${matchA.title.slice(0, 55)}" and "${matchB.title.slice(0, 55)}".`
+      : `${nameA} and ${nameB} both reduced headcount in the ${industryA} space during the same period.`
+    return `${line1} Simultaneous layoffs across competing companies in the same sector typically signal a shared market correction or funding environment tightening that neither team controls independently. Watch which company preserves engineering and product velocity post-cut, because that team typically captures the customers left uncertain by the other company's restructuring.`
+  }
+
+  if (sharedType === 'PRODUCT_LAUNCH') {
+    const line1 = matchA && matchB
+      ? `${nameA} and ${nameB} both shipped new products or features in the ${industryA} space in the same window: "${matchA.title.slice(0, 55)}" and "${matchB.title.slice(0, 55)}".`
+      : `${nameA} and ${nameB} both shipped new products in the ${industryA} space during the same period.`
+    return `${line1} Simultaneous launches across sector peers typically mean both teams identified the same customer demand or competitive gap at the same time, often surfacing from the same enterprise RFP conversations. The company that wins on distribution velocity rather than feature parity typically holds the advantage through the next sales cycle.`
+  }
+
+  return `Both ${nameA} and ${nameB} had notable activity in the ${industryA} sector during the same period, creating a structural link between how analysts read each company's moves. Signals from either company are worth evaluating in the context of what the other is doing simultaneously rather than in isolation. This connection becomes most useful when one company moves and you need to predict whether the other will follow, react, or hold course.`
+}
+
 // ── Talent flow detection ──────────────────────────────────────────────────
 function detectTalentFlow(sigsA: Signal[], nameB: string, sigsB: Signal[], nameA: string): string | null {
-  const hireRegex = /\b(hired|joins|appoints?|named|from)\b/i
+  const hireRegex = /\b(hired?|joins?|appoints?|named|poached?|from)\b/i
   for (const s of [...sigsA, ...sigsB]) {
     if (s.type !== 'KEY_HIRE') continue
     const text = s.title + ' ' + (s.summary ?? '')
-    if (hireRegex.test(text) && (text.toLowerCase().includes(nameB.toLowerCase()) || text.toLowerCase().includes(nameA.toLowerCase()))) {
+    const tl = text.toLowerCase()
+    // Both companies MUST appear in the same signal to form a valid connection
+    if (hireRegex.test(text) && tl.includes(nameA.toLowerCase()) && tl.includes(nameB.toLowerCase())) {
       return s.title.slice(0, 80)
     }
   }
@@ -106,10 +214,10 @@ function detectMarketPressure(sigsA: Signal[], companyA: Company, sigsB: Signal[
   const launchA  = sigsA.find(s => s.type === 'PRODUCT_LAUNCH')
   const launchB  = sigsB.find(s => s.type === 'PRODUCT_LAUNCH')
 
-  if (fundingA && layoffB) return `${companyA.name} raised capital while ${companyB.name} cut headcount — competitive pressure signal`
-  if (fundingB && layoffA) return `${companyB.name} raised capital while ${companyA.name} cut headcount — competitive pressure signal`
-  if (launchA && launchB) return `Both launched products in the same period — direct feature race`
-  if (fundingA && fundingB) return `Both raised funding in the same cycle — competing for same investor attention`
+  if (fundingA && layoffB) return `${companyA.name} secured new capital while ${companyB.name} reduced headcount in the same period. This divergence signals ${companyA.name} is expanding market position while ${companyB.name} is contracting, opening a window to accelerate into ${companyB.name}'s existing customer base. Monitor ${companyB.name} customer churn and ${companyA.name} pipeline growth as the pressure intensifies.`
+  if (fundingB && layoffA) return `${companyB.name} secured new capital while ${companyA.name} reduced headcount in the same period. This divergence signals ${companyB.name} is expanding market position while ${companyA.name} is contracting, opening a window to accelerate into ${companyA.name}'s existing customer base. Monitor ${companyA.name} customer churn and ${companyB.name} pipeline growth as the pressure intensifies.`
+  if (launchA && launchB) return `Both ${companyA.name} and ${companyB.name} launched new products or features in the same period, signaling a direct feature race. Simultaneous launches indicate both companies are responding to the same customer feedback or competitive intelligence. The company that captures mindshare fastest in this window typically holds a durable advantage in the next sales cycle.`
+  if (fundingA && fundingB) return `Both ${companyA.name} and ${companyB.name} raised funding in the same cycle, competing for the same investor attention and portfolio positioning. Parallel fundraises in the same sector signal a market inflection point both teams identified independently. Watch for accelerated hiring and product velocity from both companies as the new capital is deployed.`
   return null
 }
 
@@ -138,7 +246,7 @@ function computeEdges(companies: Company[], signals: Signal[]): Edge[] {
           source: a.id, target: b.id, strength: 0.9,
           kind: pressureReason ? 'MARKET_PRESSURE' : 'COMPETITIVE',
           reason: pressureReason ? 'Market pressure' : 'Direct rivals',
-          detail: pressureReason ?? `${a.name} and ${b.name} compete in the same market. Activity from either directly affects the other's positioning.`,
+          detail: pressureReason ?? buildCompetitiveDetail(a.name, b.name, sigsA, sigsB, industryA ?? 'tech'),
           color: pressureReason ? EDGE_COLORS.MARKET_PRESSURE : EDGE_COLORS.COMPETITIVE,
         })
         continue
@@ -151,7 +259,7 @@ function computeEdges(companies: Company[], signals: Signal[]): Edge[] {
           source: a.id, target: b.id, strength: 0.85,
           kind: 'SIGNAL_MENTION',
           reason: 'News cross-ref',
-          detail: `A recent signal directly references both companies: ${mention}`,
+          detail: buildSignalMentionDetail(a.name, b.name, mention.title, mention.signal),
           color: EDGE_COLORS.SIGNAL_MENTION,
         })
         continue
@@ -164,7 +272,7 @@ function computeEdges(companies: Company[], signals: Signal[]): Edge[] {
           source: a.id, target: b.id, strength: 0.75,
           kind: 'TALENT_FLOW',
           reason: 'Talent flow',
-          detail: `Hire signal referencing both companies: ${talent}`,
+          detail: `A verified hire signal names both ${a.name} and ${b.name} in the same story: "${talent}". Senior moves that explicitly cross between two companies reveal which team is on the offensive and where domain expertise is migrating. Track follow-on hires over the next 60 days to confirm whether this is an isolated pickup or the beginning of a broader talent shift.`,
           color: EDGE_COLORS.TALENT_FLOW,
         })
         continue
@@ -184,15 +292,20 @@ function computeEdges(companies: Company[], signals: Signal[]): Edge[] {
           continue
         }
 
-        // 5. Same industry peer (weak connection, only show if they have signals)
-        if (sigsA.length > 0 && sigsB.length > 0) {
-          edges.push({
-            source: a.id, target: b.id, strength: 0.3,
-            kind: 'INDUSTRY_PEER',
-            reason: `${industryA} sector`,
-            detail: `Both ${a.name} and ${b.name} operate in the ${industryA} space. Monitor for competitive moves, shared customers, or market shifts affecting both.`,
-            color: EDGE_COLORS.INDUSTRY_PEER,
-          })
+        // 5. Same industry peer - only show when both share the same signal type (meaningful overlap)
+        if (sigsA.length >= 2 && sigsB.length >= 2) {
+          const typesA = new Set(sigsA.map(s => s.type))
+          const typesB = new Set(sigsB.map(s => s.type))
+          const sharedTypes = [...typesA].filter(t => typesB.has(t) && t !== 'GENERAL')
+          if (sharedTypes.length > 0) {
+            edges.push({
+              source: a.id, target: b.id, strength: 0.3,
+              kind: 'INDUSTRY_PEER',
+              reason: `${industryA} sector`,
+              detail: buildIndustryPeerDetail(a.name, b.name, sigsA, sigsB, industryA ?? 'tech', sharedTypes[0]),
+              color: EDGE_COLORS.INDUSTRY_PEER,
+            })
+          }
         }
       }
     }
@@ -210,6 +323,7 @@ export function CompanyNetwork({ companies, signals, enableNavigation = true }: 
   const rafRef     = useRef<number>(0)
   const dragRef    = useRef<{ nodeId: string; ox: number; oy: number } | null>(null)
   const panRef     = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null)
+  const mouseDownPos = useRef<{ x: number; y: number } | null>(null)  // track actual movement
   const scaleRef   = useRef(1)
   const offsetRef  = useRef({ x: 0, y: 0 })
   const focusRef   = useRef<string | null>(null)
@@ -350,6 +464,7 @@ export function CompanyNetwork({ companies, signals, enableNavigation = true }: 
 
   function onMouseDown(e: React.MouseEvent) {
     const {x,y}=canvasXY(e); const w=toWorld(x,y); const node=nodeAt(w.x,w.y)
+    mouseDownPos.current={x,y}   // record where mouse went down
     if(node){node.isDragging=true;dragRef.current={nodeId:node.id,ox:w.x-node.x,oy:w.y-node.y}}
     else panRef.current={sx:x,sy:y,ox:offsetRef.current.x,oy:offsetRef.current.y}
   }
@@ -363,10 +478,14 @@ export function CompanyNetwork({ companies, signals, enableNavigation = true }: 
   }
 
   function onMouseUp(e: React.MouseEvent) {
-    const wasDrag=!!dragRef.current; const {x,y}=canvasXY(e); const w=toWorld(x,y)
+    const {x,y}=canvasXY(e); const w=toWorld(x,y)
+    // A "drag" only counts if the mouse moved more than 4px from where it went down
+    const mdp=mouseDownPos.current
+    const moved=mdp?Math.sqrt((x-mdp.x)**2+(y-mdp.y)**2)>4:false
+    mouseDownPos.current=null
     if(dragRef.current){const n=nodesRef.current.find(n=>n.id===dragRef.current!.nodeId);if(n){n.isDragging=false;n.vx=0;n.vy=0};dragRef.current=null}
     panRef.current=null; canvasRef.current!.style.cursor='grab'
-    if(!wasDrag){
+    if(!moved){
       const node=nodeAt(w.x,w.y); const edge=!node?edgeAt(w.x,w.y):null
       if(node){
         // Single-click: navigate to focused subgraph view
@@ -396,18 +515,18 @@ export function CompanyNetwork({ companies, signals, enableNavigation = true }: 
       <canvas ref={canvasRef} className="w-full h-full" style={{cursor:'grab',display:'block'}}
         onWheel={onWheel} onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp} />
 
-      {/* Controls */}
-      <div className="absolute bottom-4 left-4">
-        <span className="text-[10px] px-2 py-1 rounded-md" style={{background:'rgba(0,0,0,0.7)',color:'rgba(255,255,255,0.3)',border:'1px solid rgba(255,255,255,0.07)'}}>
-          Scroll to zoom · Drag to pan · Click node or edge for details
+      {/* Controls — top-left so it never overlaps the legend */}
+      <div className="absolute top-3 left-3">
+        <span className="text-[9px] px-2 py-1 rounded-md" style={{background:'rgba(0,0,0,0.65)',color:'rgba(255,255,255,0.25)',border:'1px solid rgba(255,255,255,0.06)'}}>
+          Scroll to zoom · Drag to pan · Click for details
         </span>
       </div>
 
-      {/* Legend */}
-      <div className="absolute bottom-4 right-4 space-y-1">
+      {/* Legend — bottom-right, stacked vertically */}
+      <div className="absolute bottom-3 right-3 space-y-1">
         {(Object.entries(EDGE_LABELS) as [EdgeKind,string][]).filter(([k])=>edgeCounts[k]>0).map(([kind,label])=>(
           <div key={kind} className="flex items-center gap-1.5 px-2 py-0.5 rounded" style={{background:'rgba(0,0,0,0.7)',border:'1px solid rgba(255,255,255,0.07)'}}>
-            <div className="w-6 h-0.5 rounded" style={{background:EDGE_COLORS[kind]}} />
+            <div className="w-5 h-0.5 rounded" style={{background:EDGE_COLORS[kind]}} />
             <span className="text-[9px]" style={{color:'rgba(255,255,255,0.4)'}}>{label}</span>
           </div>
         ))}

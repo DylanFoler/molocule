@@ -14,10 +14,8 @@ import { TrendingUp } from 'lucide-react'
 async function getDashboardData(userId: string) {
   const supabase = createServiceClient()
 
-  const [companiesRes, reposRes, digestsRes, recentSignalsRes] = await Promise.all([
+  const [companiesRes, recentSignalsRes] = await Promise.all([
     supabase.from('companies').select('id').eq('user_id', userId),
-    supabase.from('repos').select('id').eq('user_id', userId),
-    supabase.from('digests').select('id'),
     supabase
       .from('signals')
       .select('*, company:companies!inner(*)')
@@ -26,7 +24,6 @@ async function getDashboardData(userId: string) {
       .limit(8),
   ])
 
-  // Signal counts fetched separately to avoid cross-user data
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const companyIds = (companiesRes.data ?? []).map(c => c.id)
   const signalsRes = companyIds.length > 0
@@ -37,8 +34,6 @@ async function getDashboardData(userId: string) {
     total_companies:   companiesRes.data?.length ?? 0,
     active_signals:    signalsRes.data?.length ?? 0,
     new_signals_today: (signalsRes.data ?? []).filter(s => new Date(s.detected_at) >= today).length,
-    connected_repos:   reposRes.data?.length ?? 0,
-    digests_generated: digestsRes.data?.length ?? 0,
   }
 
   return { stats, recentSignals: recentSignalsRes.data ?? [] }

@@ -4,27 +4,25 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import Image from 'next/image'
-import { LayoutDashboard, Building2, TrendingUp, GitPullRequest, Network, LogOut } from 'lucide-react'
+import { LayoutDashboard, Building2, TrendingUp, Network, LogOut } from 'lucide-react'
 import { MoleculeIcon } from '@/components/ui/molecule-icon'
 
 interface SidebarProps {
   user?: { name?: string | null; email?: string | null; image?: string | null }
 }
 
+// Diamond layout: Overview (top), Companies (left), Signals (right), Network (bottom)
 const NAV = [
-  { href: '/dashboard', label: 'Overview',   Icon: LayoutDashboard, cx: 112, cy: 82  },
-  { href: '/companies', label: 'Companies',  Icon: Building2,        cx: 55,  cy: 136 },
-  { href: '/signals',   label: 'Signals',    Icon: TrendingUp,       cx: 169, cy: 136 },
-  { href: '/network',   label: 'Network',    Icon: Network,          cx: 55,  cy: 200 },
-  { href: '/reports',   label: 'Dev Digest', Icon: GitPullRequest,   cx: 169, cy: 200 },
+  { href: '/dashboard', label: 'Overview',  Icon: LayoutDashboard, cx: 112, cy: 72  },
+  { href: '/companies', label: 'Companies', Icon: Building2,        cx: 55,  cy: 148 },
+  { href: '/signals',   label: 'Signals',   Icon: TrendingUp,       cx: 169, cy: 148 },
+  { href: '/network',   label: 'Network',   Icon: Network,          cx: 112, cy: 224 },
 ]
 
-// Bond pairs between nodes
 const BONDS: [number, number][] = [
-  [0, 1], [0, 2],   // Overview → Companies, Signals
-  [1, 3], [2, 4],   // Companies → Network, Signals → Dev Digest
-  [3, 4],           // Network — Dev Digest (bottom bond)
-  [1, 2],           // Companies — Signals (cross bond)
+  [0, 1], [0, 2],  // Overview to Companies and Signals
+  [1, 3], [2, 3],  // Companies and Signals to Network
+  [1, 2],          // Companies to Signals cross bond
 ]
 
 export function Sidebar({ user }: SidebarProps) {
@@ -59,7 +57,7 @@ export function Sidebar({ user }: SidebarProps) {
 
       {/* Molecule nav */}
       <div className="flex-1 flex flex-col items-center pt-4 pb-2">
-        <svg width="224" height="260" viewBox="0 0 224 260">
+        <svg width="224" height="270" viewBox="0 0 224 270">
           {/* Bond lines */}
           {BONDS.map(([i, j]) => {
             const a = NAV[i]; const b = NAV[j]

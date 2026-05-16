@@ -61,7 +61,7 @@ export function CompanyForm({ onSuccess }: CompanyFormProps) {
       setForm({
         name:         data.name,
         website:      data.website,
-        linkedin_url: '',
+        linkedin_url: data.linkedin_url ?? '',
         github_org:   data.github_org ?? '',
         blog_rss_url: data.blog_rss_url ?? '',
       })
@@ -86,8 +86,12 @@ export function CompanyForm({ onSuccess }: CompanyFormProps) {
       const company = await res.json()
       setOpen(false)
       resetDialog()
-      onSuccess?.()
-      router.refresh()
+      // If a callback is provided it handles refreshing; otherwise force a server re-fetch
+      if (onSuccess) {
+        onSuccess()
+      } else {
+        router.refresh()
+      }
 
       // Fire scan immediately so signals appear without waiting for nightly cron
       const scanningName = form.name
@@ -100,8 +104,7 @@ export function CompanyForm({ onSuccess }: CompanyFormProps) {
             title: found > 0 ? `${found} signal${found > 1 ? 's' : ''} found` : 'No recent signals',
             description: found > 0 ? `Signals detected for ${scanningName}.` : `We will keep watching ${scanningName} nightly.`,
           })
-          onSuccess?.()
-          router.refresh()
+          if (onSuccess) { onSuccess() } else { router.refresh() }
         })
         .catch(() => {})
     } catch {
@@ -195,21 +198,41 @@ export function CompanyForm({ onSuccess }: CompanyFormProps) {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="github_org">GitHub org</Label>
-                <Input id="github_org" placeholder="acme-inc" value={form.github_org}
+                <Label htmlFor="github_org" className="flex items-center gap-1.5">
+                  GitHub org
+                  {enriched && !enriched.found?.github && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ color: 'rgba(251,191,36,0.8)', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)' }}>not found</span>
+                  )}
+                </Label>
+                <Input id="github_org" placeholder={enriched && !enriched.found?.github ? 'Add GitHub org manually' : 'acme-inc'} value={form.github_org}
                   onChange={e => setForm(f => ({ ...f, github_org: e.target.value }))} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="linkedin_url">LinkedIn URL</Label>
-                <Input id="linkedin_url" placeholder="linkedin.com/company/..." value={form.linkedin_url}
+                <Label htmlFor="linkedin_url" className="flex items-center gap-1.5">
+                  LinkedIn URL
+                  {enriched && !enriched.found?.linkedin && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ color: 'rgba(251,191,36,0.8)', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)' }}>not found</span>
+                  )}
+                </Label>
+                <Input id="linkedin_url" placeholder={enriched && !enriched.found?.linkedin ? 'Add LinkedIn URL manually' : 'linkedin.com/company/...'} value={form.linkedin_url}
                   onChange={e => setForm(f => ({ ...f, linkedin_url: e.target.value }))} />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="blog_rss_url">Blog RSS feed</Label>
-              <Input id="blog_rss_url" placeholder="https://acme.com/blog/rss.xml" value={form.blog_rss_url}
+              <Label htmlFor="blog_rss_url" className="flex items-center gap-1.5">
+                Blog RSS feed
+                {enriched && !enriched.found?.rss && (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ color: 'rgba(251,191,36,0.8)', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)' }}>not found</span>
+                )}
+              </Label>
+              <Input id="blog_rss_url" placeholder={enriched && !enriched.found?.rss ? 'Add RSS feed URL manually' : 'https://acme.com/blog/rss.xml'} value={form.blog_rss_url}
                 onChange={e => setForm(f => ({ ...f, blog_rss_url: e.target.value }))} />
+              {enriched && !enriched.found?.rss && (
+                <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                  No RSS feed detected. You can add one later by editing the company.
+                </p>
+              )}
             </div>
 
             <div className="flex items-center justify-between pt-1">

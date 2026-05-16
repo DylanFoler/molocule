@@ -4,18 +4,19 @@ import { useState, useEffect } from 'react'
 import { CompanyNetwork } from '@/components/company-network'
 import { AutoRefresh } from '@/components/auto-refresh'
 import { PageHeader } from '@/components/page-header'
+import { getCached, setCached } from '@/lib/page-cache'
 import type { Company, Signal } from '@/lib/types'
 import { Network } from 'lucide-react'
 
 export default function NetworkPage() {
-  const [companies, setCompanies] = useState<Company[]>([])
-  const [signals,   setSignals]   = useState<Signal[]>([])
-  const [loading,   setLoading]   = useState(true)
+  const [companies, setCompanies] = useState<Company[]>(() => getCached<Company[]>('companies') ?? [])
+  const [signals,   setSignals]   = useState<Signal[]>(() => getCached<Signal[]>('signals-200') ?? [])
+  const [loading,   setLoading]   = useState(() => getCached('companies') === null)
 
   async function fetchData() {
     const [cRes, sRes] = await Promise.all([fetch('/api/companies'), fetch('/api/signals?limit=200')])
-    if (cRes.ok) setCompanies(await cRes.json())
-    if (sRes.ok) setSignals(await sRes.json())
+    if (cRes.ok) { const d = await cRes.json(); setCached('companies', d); setCompanies(d) }
+    if (sRes.ok) { const d = await sRes.json(); setCached('signals-200', d); setSignals(d) }
     setLoading(false)
   }
 
