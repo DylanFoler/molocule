@@ -8,9 +8,6 @@ const nextConfig = {
       { protocol: 'https', hostname: '**.githubusercontent.com' },
     ],
   },
-  turbopack: {
-    root: __dirname,
-  },
 }
 
 module.exports = nextConfig
