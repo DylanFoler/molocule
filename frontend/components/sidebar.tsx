@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import Image from 'next/image'
-import { LayoutDashboard, Building2, TrendingUp, Network, LogOut } from 'lucide-react'
+import { LayoutDashboard, Building2, TrendingUp, Network, LogOut, Github } from 'lucide-react'
 import { MoleculeIcon } from '@/components/ui/molecule-icon'
 
 interface SidebarProps {
@@ -157,8 +157,17 @@ export function Sidebar({ user }: SidebarProps) {
           </div>
         </div>
 
+        <a href="https://github.com/DylanFoler/molocule" target="_blank" rel="noopener noreferrer"
+          className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition-all"
+          style={{ color: 'rgba(255,255,255,0.25)' }}
+          onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.55)')}
+          onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.25)')}>
+          <Github className="w-3.5 h-3.5" />
+          View source
+        </a>
+
         <button onClick={() => signOut({ callbackUrl: '/' })}
-          className="w-full mt-1 flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition-all"
+          className="w-full mt-0.5 flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition-all"
           style={{ color: 'rgba(255,255,255,0.3)', border: '1px solid transparent' }}
           onMouseEnter={e => {
             (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.65)'

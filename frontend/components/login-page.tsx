@@ -47,8 +47,11 @@ export function LoginPage() {
               molocule
             </span>
           </h1>
-          <p className="text-[10px] tracking-[0.25em] uppercase" style={{ color: 'rgba(255,255,255,0.25)' }}>
+          <p className="text-[10px] tracking-[0.25em] uppercase mb-3" style={{ color: 'rgba(255,255,255,0.25)' }}>
             Signal Intelligence
+          </p>
+          <p className="text-[12px] leading-relaxed max-w-[220px] mx-auto" style={{ color: 'rgba(255,255,255,0.38)' }}>
+            Track funding, hires, and launches across the companies that matter to you.
           </p>
         </div>
 
@@ -76,7 +79,7 @@ export function LoginPage() {
           <div className="p-6">
             <p className="text-[13px] font-semibold mb-1" style={{ color: 'rgba(255,255,255,0.88)' }}>Sign in to continue</p>
             <p className="text-[11px] leading-relaxed mb-5" style={{ color: 'rgba(255,255,255,0.38)' }}>
-              Connect GitHub to start tracking company signals.
+              Connect GitHub to start. Read-only access, nothing posted on your behalf.
             </p>
 
             <button
@@ -102,7 +105,7 @@ export function LoginPage() {
         </div>
 
         <p className="text-[10px] text-center mt-5 tracking-[0.18em] uppercase" style={{ color: 'rgba(255,255,255,0.15)' }}>
-          Company intelligence, built for sharp analysts
+          Open source · Built with Next.js, Supabase &amp; Claude
         </p>
       </div>
     </div>
