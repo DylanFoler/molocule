@@ -43,8 +43,8 @@ jobs:
             exit 1
           fi
 
-          scanned=$(echo "$body" | python3 -c "import sys, json; print(json.load(sys.stdin).get('scanned', 0))")
-          echo "Scanned $scanned companies"
+          scanned=$(echo "$body" | python3 -c "import sys, json; d=json.load(sys.stdin); print(f\"{d.get('scanned',0)}/{d.get('total',d.get('scanned',0))} companies\")")
+          echo "Scanned $scanned"
 
       - name: Send Slack summary (optional)
         if: success() && env.SLACK_WEBHOOK_URL != ''
