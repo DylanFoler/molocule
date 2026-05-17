@@ -1,16 +1,25 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Fallback values prevent build-time crash when env vars aren't loaded yet.
-// Real values are required at runtime — the app will not function without them.
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://placeholder.supabase.co'
-const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'placeholder'
+const PLACEHOLDER = 'https://placeholder.supabase.co'
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON)
+function safeUrl(val: string | undefined): string {
+  if (val && val.startsWith('https://')) return val
+  return PLACEHOLDER
+}
+
+function safeKey(val: string | undefined): string {
+  return val || 'placeholder-key'
+}
+
+export const supabase = createClient(
+  safeUrl(process.env.NEXT_PUBLIC_SUPABASE_URL),
+  safeKey(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+)
 
 export function createServiceClient() {
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://placeholder.supabase.co',
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? 'placeholder',
+    safeUrl(process.env.NEXT_PUBLIC_SUPABASE_URL),
+    safeKey(process.env.SUPABASE_SERVICE_ROLE_KEY),
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 }
