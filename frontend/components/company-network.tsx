@@ -84,14 +84,21 @@ function signalsMentionEachOther(sigsA: Signal[], companyB: Company, sigsB: Sign
   return null
 }
 
+// Truncate at the last word boundary before max chars to avoid cutting mid-word
+function wordTrunc(s: string, max: number): string {
+  if (s.length <= max) return s
+  const cut = s.slice(0, max)
+  const lastSpace = cut.lastIndexOf(' ')
+  return lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut
+}
+
 // ── Build unique signal-mention detail based on actual mention content ─────
 function buildSignalMentionDetail(nameA: string, nameB: string, mentionTitle: string, signal: Signal): string {
   const m = (mentionTitle + ' ' + (signal.summary ?? '')).toLowerCase()
-  // Use the signal's existing AI insight to ground the analysis when available
   const insight = signal.llm_insight ? `Context on this signal: ${signal.llm_insight}` : null
 
   // Lead with the actual news, then one sharp inference specific to these companies
-  const summary = signal.summary ? ` ${signal.summary.slice(0, 120).trim()}.` : ''
+  const summary = signal.summary ? ` ${wordTrunc(signal.summary, 120)}` : ''
 
   if (/exploit|vulnerabil|hack|breach|malware|attack|patch|cve|zero.?day|security|flaw/.test(m)) {
     const call = insight ?? `${nameA}'s technology and ${nameB}'s hardware were named in the same security incident, meaning AI-assisted vulnerability discovery is already reaching the hardware layer. The next disclosure from either company will reveal how seriously each is treating this as a structural threat versus a one-off.`
@@ -165,9 +172,9 @@ function buildCompetitiveDetail(nameA: string, nameB: string, sigsA: Signal[], s
     const line3 = insight
       ? `Signal context: ${insight}`
       : `Moves at one company in the ${industry} space tend to create response pressure at the other within 60 to 90 days. Track both together as a pair rather than separately.`
-    return `${nameA} and ${nameB} compete directly in the ${industry} space. Most recently, ${nameA} ${verbA} ("${latestA.title.slice(0, 60)}") while ${nameB} ${verbB} ("${latestB.title.slice(0, 60)}"). ${line3}`
+    return `${nameA} and ${nameB} compete directly in the ${industry} space. Most recently, ${nameA} ${verbA} ("${wordTrunc(latestA.title, 60)}") while ${nameB} ${verbB} ("${wordTrunc(latestB.title, 60)}"). ${line3}`
   }
-  return `${nameA} and ${nameB} compete in the ${industry} space for the same customers and budget. Scan both companies regularly and compare their signals side by side — the gap between their recent moves will tell you which team is on offense and which is responding.`
+  return `${nameA} and ${nameB} compete in the ${industry} space for the same customers and budget. Scan both companies regularly and compare their signals side by side, the gap between their recent moves will tell you which team is on offense and which is responding.`
 }
 
 // ── Build unique INDUSTRY_PEER detail from actual matched signal titles ────
@@ -181,28 +188,28 @@ function buildIndustryPeerDetail(nameA: string, nameB: string, sigsA: Signal[], 
     const line1 = amtA && amtB
       ? `${nameA} (${amtA}) and ${nameB} (${amtB}) both raised capital in the ${industryA} space during the same period, signaling investor conviction in the category rather than a bet on a single winner.`
       : matchA && matchB
-      ? `${nameA} and ${nameB} both raised capital in the ${industryA} space in the same window: "${matchA.title.slice(0, 60)}" and "${matchB.title.slice(0, 60)}".`
+      ? `${nameA} and ${nameB} both raised capital in the ${industryA} space in the same window: "${wordTrunc(matchA.title, 60)}" and "${wordTrunc(matchB.title, 60)}".`
       : `${nameA} and ${nameB} both raised capital in the ${industryA} space in the same window.`
     return `${line1} The deployment race starts now: watch both companies' LinkedIn job boards for VP Sales, Senior Account Executive, and Solutions Engineer postings in the next 90 days. The team that converts capital into quota-carrying sales headcount first typically locks enterprise deals before the other can mount a competing motion.`
   }
 
   if (sharedType === 'KEY_HIRE') {
     const line1 = matchA && matchB
-      ? `${nameA} and ${nameB} both made senior hires in the ${industryA} space in the same window: "${matchA.title.slice(0, 60)}" and "${matchB.title.slice(0, 60)}".`
+      ? `${nameA} and ${nameB} both made senior hires in the ${industryA} space in the same window: "${wordTrunc(matchA.title, 60)}" and "${wordTrunc(matchB.title, 60)}".`
       : `${nameA} and ${nameB} both made senior hires in the ${industryA} space during the same period.`
     return `${line1} The functions each company is hiring into reveal their strategic bets: commercial hires (CRO, VP Sales, AE) signal an aggressive go-to-market push, while product and engineering hires signal a platform investment before the next sales cycle. If ${nameA} and ${nameB} are hiring into different functions, they are betting on different paths to the same market, which will clarify which approach wins within 12 months.`
   }
 
   if (sharedType === 'LAYOFF') {
     const line1 = matchA && matchB
-      ? `${nameA} and ${nameB} both reduced headcount in the ${industryA} space during the same period: "${matchA.title.slice(0, 60)}" and "${matchB.title.slice(0, 60)}".`
+      ? `${nameA} and ${nameB} both reduced headcount in the ${industryA} space during the same period: "${wordTrunc(matchA.title, 60)}" and "${wordTrunc(matchB.title, 60)}".`
       : `${nameA} and ${nameB} both reduced headcount in the ${industryA} space during the same period.`
     return `${line1} The most diagnostic signal is where each company made the cuts: layoffs hitting sales and recruiting are operational efficiency moves, while cuts to engineering and product are strategic retreats. Whichever company protected its core product team will recover roadmap velocity fastest and is the better bet to absorb the customers left uncertain by both restructurings.`
   }
 
   if (sharedType === 'PRODUCT_LAUNCH') {
     const line1 = matchA && matchB
-      ? `${nameA} and ${nameB} both shipped new products or features in the ${industryA} space in the same window: "${matchA.title.slice(0, 60)}" and "${matchB.title.slice(0, 60)}".`
+      ? `${nameA} and ${nameB} both shipped new products or features in the ${industryA} space in the same window: "${wordTrunc(matchA.title, 60)}" and "${wordTrunc(matchB.title, 60)}".`
       : `${nameA} and ${nameB} both launched new products in the ${industryA} space during the same period.`
     return `${line1} Simultaneous launches in the same sector almost always trace back to the same enterprise RFP conversations surfacing an identical gap. The company that lands the first referenceable logo for its launch becomes the default in that category for the next sales cycle. Track customer announcements and case studies from both teams in the next 60 days to see which one is winning the reference race.`
   }
@@ -243,7 +250,7 @@ function detectTalentFlow(sigsA: Signal[], nameB: string, sigsB: Signal[], nameA
     const tl = text.toLowerCase()
     // Both companies MUST appear in the same signal to form a valid connection
     if (hireRegex.test(text) && tl.includes(nameA.toLowerCase()) && tl.includes(nameB.toLowerCase())) {
-      return s.title.slice(0, 80)
+      return wordTrunc(s.title, 80)
     }
   }
   return null
