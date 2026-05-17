@@ -16,19 +16,25 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account }) {
       if (!user.email) return false
 
-      const supabase = createServiceClient()
-      const { error } = await supabase.from('users').upsert(
-        {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.image,
-          github_access_token: account?.access_token,
-        },
-        { onConflict: 'id' }
-      )
+      try {
+        const supabase = createServiceClient()
+        const { error } = await supabase.from('users').upsert(
+          {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            image: user.image,
+            github_access_token: account?.access_token,
+          },
+          { onConflict: 'id' }
+        )
+        if (error) console.error('[signIn] Supabase upsert error:', error.message)
+      } catch (e) {
+        console.error('[signIn] Unexpected error:', e)
+      }
 
-      return !error
+      // Always allow sign-in — Supabase sync failure should not block access
+      return true
     },
 
     async session({ session, token }) {
