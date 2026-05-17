@@ -59,11 +59,12 @@ function cleanCompanyName(rawTitle: string | null, fallbackInput: string, websit
   if (dotTagline) return dotTagline[1].trim()
 
   // Title begins with the hostname-derived name, rest is clearly a tagline
+  // Return the og:title's slice (correct casing e.g. "OpenAI") not fromHostname ("Openai")
   if (fromHostname && title.toLowerCase().startsWith(fromHostname.toLowerCase())) {
     const rest = title.slice(fromHostname.length).trim()
     const startsWithSep = !rest || rest.startsWith('|') || rest.startsWith(':') ||
       rest.startsWith('-') || rest.startsWith('–') || rest.startsWith('—')
-    if (startsWithSep) return fromHostname
+    if (startsWithSep) return title.slice(0, fromHostname.length).trim() || fromHostname
   }
 
   // If the title doesn't mention the company name at all it's a pure tagline
@@ -86,7 +87,12 @@ function resolveUrl(base: string, path: string): string {
 }
 
 // Common RSS path suffixes to try when the <link> tag is missing
-const RSS_GUESSES = ['/feed', '/feed.xml', '/rss', '/rss.xml', '/blog/feed', '/blog/rss.xml', '/atom.xml']
+const RSS_GUESSES = [
+  '/feed', '/feed.xml', '/rss', '/rss.xml',
+  '/blog/feed', '/blog/feed.xml', '/blog/rss.xml', '/blog/atom.xml',
+  '/news/feed', '/news/rss.xml',
+  '/atom.xml', '/feeds/posts/default',
+]
 
 async function fetchSiteMetadata(url: string): Promise<{
   title: string | null
@@ -166,7 +172,7 @@ async function findGithubOrg(name: string, websiteUrl: string, token?: string): 
     const companyDomain = (() => { try { return new URL(websiteUrl).hostname.replace(/^www\./, '') } catch { return '' } })()
     const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '')
 
-    const { data } = await octokit.search.users({ q: `${name} type:org`, per_page: 5 })
+    const { data } = await octokit.search.users({ q: `${name} type:org`, per_page: 10 })
 
     // Prefer an org whose GitHub profile website matches the company's domain
     for (const item of data.items) {
@@ -174,6 +180,9 @@ async function findGithubOrg(name: string, websiteUrl: string, token?: string): 
         const { data: org } = await octokit.orgs.get({ org: item.login })
         const orgSite = (org.blog ?? '').toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '')
         if (companyDomain && orgSite.includes(companyDomain)) return item.login
+        // Also match by org display name (e.g. org.name = "OpenAI" matches query "openai")
+        const orgName = (org.name ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
+        if (orgName && orgName === slug) return item.login
       } catch { /* skip */ }
     }
 
@@ -194,6 +203,7 @@ async function findGithubOrg(name: string, websiteUrl: string, token?: string): 
     return null
   }
 }
+
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -220,7 +230,8 @@ export async function POST(req: NextRequest) {
   let rssUrl = meta.rssUrl
   if (!rssUrl) rssUrl = await guessRssUrl(websiteUrl)
 
-  // Try to find LinkedIn from the GitHub org profile if not found on the website
+  // Try to find LinkedIn: GitHub org profile, then slug guess
+  const resolvedName = cleanCompanyName(meta.title, companyName, websiteUrl)
   let linkedInUrl = meta.linkedInUrl
   if (!linkedInUrl && org && session.user.accessToken) {
     try {
@@ -236,7 +247,7 @@ export async function POST(req: NextRequest) {
   try { faviconUrl = `https://www.google.com/s2/favicons?domain=${new URL(websiteUrl).hostname}&sz=64` } catch {}
 
   const enrichment: CompanyEnrichment = {
-    name:         cleanCompanyName(meta.title, companyName, websiteUrl),
+    name:         resolvedName,
     website:      websiteUrl,
     description:  meta.description,
     github_org:   org,
