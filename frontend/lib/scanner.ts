@@ -101,6 +101,17 @@ function passesQualityFilter(title: string, body: string, companyName: string): 
   // Skip short/useless titles
   if (title.trim().length < 20) return false
 
+  // Skip articles clearly in the wrong domain for this company
+  // e.g. "Linear" matching camera/photography articles about linear zoom/AF
+  const wrongDomain = [
+    { company: 'linear', patterns: /\bcamera\b|\blens\b|\bmm\b.*\bf\d|\baperture\b|\bphotograph|\bimaging\b|\bsensor\b|\bfujifilm|canon|nikon|sony.*lens/i },
+    { company: 'anthropic', patterns: /\btoaster\b|\bappliance\b|\bcoffee\b/i },
+    { company: 'notion', patterns: /\bchemical notion\b|\blegal notion\b/i },
+  ]
+  for (const { company: co, patterns } of wrongDomain) {
+    if (primarySlug === co && patterns.test(t)) return false
+  }
+
   // Skip known noise patterns
   const noise = [
     /scam|fraud|fake|phish|ponzi|pyramid/,

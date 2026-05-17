@@ -36,7 +36,23 @@ function buildFallback(type: SignalType, title: string, company: string): string
   }
 
   if (type === 'PRODUCT_LAUNCH') {
-    return `${company} shipped something new. The immediate question is whether this directly overlaps with adjacent products in your market or opens a gap for competitors who were waiting for ${company} to move first.`
+    // Extract what was actually launched from the title
+    const launchMatch = title.match(/(?:launches?|releases?|ships?|announces?|introduces?|debuts?|unveils?|open[- ]sources?)\s+([^,.|–—]{4,55})/i)
+    const product = launchMatch?.[1]?.trim().replace(/\s*[-–—].*$/, '').trim()
+
+    // Detect launch category from keywords
+    const isAI = /\bai\b|agent|model|llm|gpt|intelligence|copilot|assistant/i.test(title)
+    const isAPI = /\bapi\b|sdk|developer|integration|webhook|platform/i.test(title)
+    const isEnterprise = /enterprise|b2b|team|workspace|sso|compliance|soc/i.test(title)
+    const isPricing = /pricing|plan|tier|free|pro|plus|subscription/i.test(title)
+
+    const what = product ? `"${product}"` : 'a new product'
+
+    if (isAI) return `${company} shipped ${what}, adding AI capabilities that directly compete with any tool currently handling that workflow for your customers. Evaluate whether your positioning addresses this before ${company}'s sales team does.`
+    if (isAPI) return `${company} released ${what}, expanding the developer surface of their platform. New API capabilities tend to generate ecosystem lock-in quickly — assess whether this creates a dependency risk for any integrations in your stack.`
+    if (isEnterprise) return `${company} launched ${what} targeting enterprise buyers, signaling they are moving upmarket. This typically changes their sales motion, contract sizes, and the personas they prioritize — mid-market and SMB customers may see slower support as a result.`
+    if (isPricing) return `${company} changed their pricing with ${what}. Pricing restructures force existing customers to evaluate alternatives at renewal — this is a window to engage any ${company} customer who is unhappy with the new tiers.`
+    return `${company} shipped ${what}. The companies most at risk are those whose core value proposition overlaps directly with what this launch does. Map it against your competitive landscape before it shows up in a prospect's RFP.`
   }
 
   // GENERAL: parse the title for a specific implication rather than generic text
