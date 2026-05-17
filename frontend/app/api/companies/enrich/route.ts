@@ -153,18 +153,37 @@ async function guessRssUrl(baseUrl: string): Promise<string | null> {
   return results.find(r => r !== null) ?? null
 }
 
-async function findGithubOrg(name: string, token?: string): Promise<string | null> {
+async function findGithubOrg(name: string, websiteUrl: string, token?: string): Promise<string | null> {
   if (!token) return null
   try {
     const octokit = new Octokit({ auth: token })
-    const { data } = await octokit.search.users({ q: `${name} type:org`, per_page: 3 })
-    // Only accept if the login closely matches the company name
+    const companyDomain = (() => { try { return new URL(websiteUrl).hostname.replace(/^www\./, '') } catch { return '' } })()
     const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '')
-    const best = data.items.find(item => {
+
+    const { data } = await octokit.search.users({ q: `${name} type:org`, per_page: 5 })
+
+    // Prefer an org whose GitHub profile website matches the company's domain
+    for (const item of data.items) {
+      try {
+        const { data: org } = await octokit.orgs.get({ org: item.login })
+        const orgSite = (org.blog ?? '').toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '')
+        if (companyDomain && orgSite.includes(companyDomain)) return item.login
+      } catch { /* skip */ }
+    }
+
+    // Fallback: strict slug match on login name
+    const strict = data.items.find(item => {
       const login = item.login.toLowerCase().replace(/[^a-z0-9]/g, '')
-      return login === slug || login.includes(slug) || slug.includes(login)
+      return login === slug
     })
-    return best?.login ?? data.items[0]?.login ?? null
+    if (strict) return strict.login
+
+    // Last resort: partial match only if very close
+    const partial = data.items.find(item => {
+      const login = item.login.toLowerCase().replace(/[^a-z0-9]/g, '')
+      return login.startsWith(slug) || slug.startsWith(login)
+    })
+    return partial?.login ?? null
   } catch {
     return null
   }
@@ -183,7 +202,7 @@ export async function POST(req: NextRequest) {
 
   const [metaResult, orgResult] = await Promise.allSettled([
     fetchSiteMetadata(websiteUrl),
-    findGithubOrg(companyName, session.user.accessToken),
+    findGithubOrg(companyName, websiteUrl, session.user.accessToken),
   ])
 
   const meta = metaResult.status === 'fulfilled'
@@ -195,6 +214,18 @@ export async function POST(req: NextRequest) {
   let rssUrl = meta.rssUrl
   if (!rssUrl) rssUrl = await guessRssUrl(websiteUrl)
 
+  // Try to find LinkedIn from the GitHub org profile if not found on the website
+  let linkedInUrl = meta.linkedInUrl
+  if (!linkedInUrl && org && session.user.accessToken) {
+    try {
+      const octokit = new Octokit({ auth: session.user.accessToken })
+      const { data: ghOrg } = await octokit.orgs.get({ org })
+      const match = (ghOrg.blog ?? '').match(/linkedin\.com\/company\/([a-zA-Z0-9_-]+)/i)
+        ?? (ghOrg.html_url ?? '').match(/linkedin\.com\/company\/([a-zA-Z0-9_-]+)/i)
+      if (match) linkedInUrl = `https://www.linkedin.com/company/${match[1]}`
+    } catch { /* not critical */ }
+  }
+
   let faviconUrl: string | null = null
   try { faviconUrl = `https://www.google.com/s2/favicons?domain=${new URL(websiteUrl).hostname}&sz=64` } catch {}
 
@@ -205,11 +236,11 @@ export async function POST(req: NextRequest) {
     github_org:   org,
     blog_rss_url: rssUrl,
     favicon_url:  faviconUrl,
-    linkedin_url: meta.linkedInUrl,
+    linkedin_url: linkedInUrl,
     found: {
       github:   !!org,
       rss:      !!rssUrl,
-      linkedin: !!meta.linkedInUrl,
+      linkedin: !!linkedInUrl,
     },
   }
 
