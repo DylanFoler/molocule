@@ -474,7 +474,9 @@ export function CompanyNetwork({ companies, signals, enableNavigation = true }: 
       if(!a||!b) continue
       const isDimmed=focused&&dim(a.id)&&dim(b.id)
       const isLit=focused&&(e.source===focused||e.target===focused)
-      const op=isDimmed?0.03:isLit?0.6+e.strength*0.3:0.08+e.strength*0.18
+      // Competitive/market edges get higher base opacity so their colour is actually visible
+      const baseOp = (e.kind==='COMPETITIVE'||e.kind==='MARKET_PRESSURE') ? 0.38+e.strength*0.15 : 0.08+e.strength*0.18
+      const op=isDimmed?0.03:isLit?0.65+e.strength*0.3:baseOp
       ctx.strokeStyle=e.color.replace(/[\d.]+\)$/,`${op})`); ctx.lineWidth=isLit?1.8+e.strength:0.8+e.strength*0.6
       ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke()
       if(isLit&&s>0.6){
@@ -505,6 +507,8 @@ export function CompanyNetwork({ companies, signals, enableNavigation = true }: 
   }, [])
 
   useEffect(() => {
+    // Pre-settle physics before first frame so nodes don't visibly snap into place
+    for (let i = 0; i < 120; i++) simulate()
     function loop(){simulate();draw();rafRef.current=requestAnimationFrame(loop)}
     rafRef.current=requestAnimationFrame(loop)
     return ()=>cancelAnimationFrame(rafRef.current)

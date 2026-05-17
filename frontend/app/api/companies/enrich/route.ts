@@ -66,6 +66,12 @@ function cleanCompanyName(rawTitle: string | null, fallbackInput: string, websit
     if (startsWithSep) return fromHostname
   }
 
+  // If the title doesn't mention the company name at all it's a pure tagline
+  // e.g. ramp.com returns "Spend Smarter" — use "Ramp" from hostname instead
+  if (fromHostname && !title.toLowerCase().includes(fromHostname.toLowerCase())) {
+    return fromHostname
+  }
+
   // Full title is short and clean, no separator characters, use as-is
   const hasSeparator = title.includes('|') || title.includes(':') || title.includes('–') || title.includes('—')
   if (title.length <= 28 && !TAGLINE_RE.test(title) && !hasSeparator) return title
