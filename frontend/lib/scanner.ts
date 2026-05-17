@@ -199,7 +199,11 @@ function extractTag(xml: string, tag: string): string | null {
 }
 
 function stripCDATA(s: string): string {
-  return decodeHTMLEntities(s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim())
+  return stripHTML(decodeHTMLEntities(s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim()))
+}
+
+function stripHTML(s: string): string {
+  return s.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
 function decodeHTMLEntities(s: string): string {
