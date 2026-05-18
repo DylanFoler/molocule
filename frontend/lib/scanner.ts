@@ -107,6 +107,9 @@ function passesQualityFilter(title: string, body: string, companyName: string): 
     { company: 'linear', patterns: /\bcamera\b|\blens\b|\bmm\b.*\bf\d|\baperture\b|\bphotograph|\bimaging\b|\bsensor\b|\bfujifilm|canon|nikon|sony.*lens/i },
     { company: 'anthropic', patterns: /\btoaster\b|\bappliance\b|\bcoffee\b/i },
     { company: 'notion', patterns: /\bchemical notion\b|\blegal notion\b/i },
+    { company: 'replicate', patterns: /\bfootball\b|\bsoccer\b|\bpremier.?league\b|\bnfl\b|\bnba\b|\bmanager\b.*\bclub\b|\bsports?\b|\bgoal\b|\bmatch\b|\bfan\b|\bstadium\b|\bcoach\b|\bplayer\b|\bteam\b.*\bscore/i },
+    { company: 'modal', patterns: /\boscillat|\bfrequency\b|\bwaveform\b|\bseismic\b|\batmospher|\bgeolog|\bclimate\b|\bweather\b|\bnoaa\b|\bnasa\b/i },
+    { company: 'pinecone', patterns: /\btree\b|\bforest\b|\bnature\b|\bwildlife\b|\bbotany\b|\bplant\b|\bpine\b.*\bneedle/i },
   ]
   for (const { company: co, patterns } of wrongDomain) {
     if (primarySlug === co && patterns.test(t)) return false
@@ -122,6 +125,8 @@ function passesQualityFilter(title: string, body: string, companyName: string): 
     /sponsored|advertis|promotion|press release: (?!.*(?:raise|fund|hire|launch|appoint))/i,
     /we added .* to a |gone too far|you won't believe|vibe cod/i,   // satirical clickbait
     /stock (?:alert|pick|tip)|buy now|sell now|price target/i,
+    /zacks (industry outlook|rank|investment research)|industry outlook highlights/i,  // analyst screeners listing multiple companies
+    /top (stocks?|picks?|buys?|rated) (to buy|for|in) \d|best stocks|stocks? to watch/i,
   ]
   if (noise.some(r => r.test(t) || r.test(b))) return false
 
@@ -208,6 +213,7 @@ function stripHTML(s: string): string {
 
 function decodeHTMLEntities(s: string): string {
   return s
+    .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
@@ -215,6 +221,7 @@ function decodeHTMLEntities(s: string): string {
     .replace(/&apos;/gi, "'")
     .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
     .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .replace(/\s{2,}/g, ' ')
     .trim()
 }
 

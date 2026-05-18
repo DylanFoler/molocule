@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { CompanyCard } from '@/components/company-card'
 import { PageHeader } from '@/components/page-header'
 import { CompanyForm } from '@/components/company-form'
+import { CompanyDiscoveryDialog } from '@/components/company-discovery-dialog'
 import { LoadDemoButton } from '@/components/load-demo-button'
 import { toast } from '@/hooks/use-toast'
 import { getCached, setCached } from '@/lib/page-cache'
@@ -101,6 +102,7 @@ export default function CompaniesPage() {
                 {scanningAll ? 'Scanning...' : 'Scan all'}
               </button>
             )}
+            <CompanyDiscoveryDialog onSuccess={fetchData} />
             <CompanyForm onSuccess={fetchData} />
           </>
         }

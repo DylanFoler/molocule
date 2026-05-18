@@ -88,18 +88,27 @@ function resolveUrl(base: string, path: string): string {
 
 // Common RSS path suffixes to try when the <link> tag is missing
 const RSS_GUESSES = [
-  '/feed', '/feed.xml', '/rss', '/rss.xml',
-  '/blog/feed', '/blog/feed.xml', '/blog/rss.xml', '/blog/atom.xml',
+  '/feed', '/feed.xml', '/rss', '/rss.xml', '/rss/',
+  '/blog/feed', '/blog/feed.xml', '/blog/rss.xml', '/blog/rss/', '/blog/atom.xml',
   '/news/feed', '/news/rss.xml',
   '/atom.xml', '/feeds/posts/default',
+  '/posts/feed', '/articles/feed', '/updates/feed',
 ]
+
+const GITHUB_SKIP = new Set([
+  'login', 'signup', 'about', 'contact', 'features', 'pricing', 'topics',
+  'explore', 'marketplace', 'sponsors', 'orgs', 'settings', 'notifications',
+  'issues', 'pulls', 'readme', 'docs', 'blog', 'security', 'enterprise',
+])
 
 async function fetchSiteMetadata(url: string): Promise<{
   title: string | null
   description: string | null
   rssUrl: string | null
   linkedInUrl: string | null
+  githubOrg: string | null
 }> {
+  const empty = { title: null, description: null, rssUrl: null, linkedInUrl: null, githubOrg: null }
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 6000)
 
@@ -108,7 +117,7 @@ async function fetchSiteMetadata(url: string): Promise<{
       signal: controller.signal,
       headers: { 'User-Agent': 'Molocule-Enricher/1.0 (signal tracker)' },
     })
-    if (!res.ok) return { title: null, description: null, rssUrl: null, linkedInUrl: null }
+    if (!res.ok) return empty
 
     const html = await res.text()
 
@@ -127,18 +136,25 @@ async function fetchSiteMetadata(url: string): Promise<{
       ?? html.match(/<link[^>]+type=["']application\/atom\+xml["'][^>]+href=["']([^"']+)["']/i)?.[1]
       ?? null
 
-    // Extract LinkedIn company URL from any link in the page HTML
+    // LinkedIn from any link in page HTML
     const linkedInMatch = html.match(/https?:\/\/(?:www\.)?linkedin\.com\/company\/([a-zA-Z0-9_-]+)/i)
     const linkedInUrl = linkedInMatch ? `https://www.linkedin.com/company/${linkedInMatch[1]}` : null
+
+    // GitHub org from any link in page HTML — most companies link their org in footer/header
+    const githubMatches = [...html.matchAll(/https?:\/\/github\.com\/([a-zA-Z0-9_-]+)/gi)]
+    const githubOrg = githubMatches
+      .map(m => m[1])
+      .find(org => org && !GITHUB_SKIP.has(org.toLowerCase())) ?? null
 
     return {
       title: ogTitle?.trim() ?? null,
       description: ogDesc?.trim().slice(0, 300) ?? null,
       rssUrl: rssRaw ? resolveUrl(url, rssRaw) : null,
       linkedInUrl,
+      githubOrg,
     }
   } catch {
-    return { title: null, description: null, rssUrl: null, linkedInUrl: null }
+    return empty
   } finally {
     clearTimeout(timer)
   }
@@ -165,35 +181,51 @@ async function guessRssUrl(baseUrl: string): Promise<string | null> {
   return results.find(r => r !== null) ?? null
 }
 
-async function findGithubOrg(name: string, websiteUrl: string, token?: string): Promise<string | null> {
+async function findGithubOrg(name: string, websiteUrl: string, token?: string, htmlOrg?: string | null): Promise<string | null> {
   if (!token) return null
   try {
     const octokit = new Octokit({ auth: token })
     const companyDomain = (() => { try { return new URL(websiteUrl).hostname.replace(/^www\./, '') } catch { return '' } })()
     const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '')
 
+    // Best signal: GitHub org link found directly in website HTML
+    if (htmlOrg) {
+      try {
+        await octokit.orgs.get({ org: htmlOrg })
+        return htmlOrg
+      } catch { /* not a valid org, fall through */ }
+    }
+
+    // Try common slug variants directly before hitting the search API
+    const variants = [slug, `${slug}-ai`, `${slug}-labs`, `${slug}-hq`, `${slug}-inc`, `${slug}-io`]
+    for (const v of variants) {
+      try {
+        const { data: org } = await octokit.orgs.get({ org: v })
+        const orgSite = (org.blog ?? '').toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '')
+        if (!companyDomain || orgSite.includes(companyDomain) || org.login.toLowerCase().replace(/[^a-z0-9]/g, '') === slug) {
+          return org.login
+        }
+      } catch { /* not found, try next */ }
+    }
+
+    // Search API as fallback
     const { data } = await octokit.search.users({ q: `${name} type:org`, per_page: 10 })
 
-    // Prefer an org whose GitHub profile website matches the company's domain
     for (const item of data.items) {
       try {
         const { data: org } = await octokit.orgs.get({ org: item.login })
         const orgSite = (org.blog ?? '').toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '')
         if (companyDomain && orgSite.includes(companyDomain)) return item.login
-        // Also match by org display name (e.g. org.name = "OpenAI" matches query "openai")
         const orgName = (org.name ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
         if (orgName && orgName === slug) return item.login
       } catch { /* skip */ }
     }
 
-    // Fallback: strict slug match on login name
-    const strict = data.items.find(item => {
-      const login = item.login.toLowerCase().replace(/[^a-z0-9]/g, '')
-      return login === slug
-    })
+    // Strict login slug match
+    const strict = data.items.find(item => item.login.toLowerCase().replace(/[^a-z0-9]/g, '') === slug)
     if (strict) return strict.login
 
-    // Last resort: partial match only if very close
+    // Partial match only if very close
     const partial = data.items.find(item => {
       const login = item.login.toLowerCase().replace(/[^a-z0-9]/g, '')
       return login.startsWith(slug) || slug.startsWith(login)
@@ -216,19 +248,21 @@ export async function POST(req: NextRequest) {
   const websiteUrl = normalizeUrl(input)
   const companyName = input.trim()
 
-  const [metaResult, orgResult] = await Promise.allSettled([
-    fetchSiteMetadata(websiteUrl),
-    findGithubOrg(companyName, websiteUrl, session.user.accessToken),
-  ])
+  // Fetch site metadata first so the GitHub org found in HTML can inform the org lookup
+  const meta = await fetchSiteMetadata(websiteUrl).catch(() => ({ title: null, description: null, rssUrl: null, linkedInUrl: null, githubOrg: null }))
+  const org = await findGithubOrg(companyName, websiteUrl, session.user.accessToken, meta.githubOrg).catch(() => null)
 
-  const meta = metaResult.status === 'fulfilled'
-    ? metaResult.value
-    : { title: null, description: null, rssUrl: null, linkedInUrl: null }
-  const org = orgResult.status === 'fulfilled' ? orgResult.value : null
-
-  // If RSS not found in HTML, probe common paths
+  // If RSS not found in HTML, probe common paths then try Substack
   let rssUrl = meta.rssUrl
   if (!rssUrl) rssUrl = await guessRssUrl(websiteUrl)
+  if (!rssUrl) {
+    const resolvedSlug = cleanCompanyName(meta.title, companyName, websiteUrl).toLowerCase().replace(/[^a-z0-9]/g, '')
+    const substackUrl = `https://${resolvedSlug}.substack.com/feed`
+    try {
+      const r = await fetch(substackUrl, { method: 'HEAD', signal: AbortSignal.timeout(2500) })
+      if (r.ok) rssUrl = substackUrl
+    } catch { /* not on Substack */ }
+  }
 
   // Try to find LinkedIn: GitHub org profile, then slug guess
   const resolvedName = cleanCompanyName(meta.title, companyName, websiteUrl)

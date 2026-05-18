@@ -374,7 +374,14 @@ function computeEdges(companies: Company[], signals: Signal[]): Edge[] {
     }
   }
 
-  return edges
+  // Deduplicate: keep only the highest-strength edge per pair
+  const edgeMap = new Map<string, Edge>()
+  for (const e of edges) {
+    const key = [e.source, e.target].sort().join('|')
+    const existing = edgeMap.get(key)
+    if (!existing || e.strength > existing.strength) edgeMap.set(key, e)
+  }
+  return Array.from(edgeMap.values())
 }
 
 export function CompanyNetwork({ companies, signals, enableNavigation = true }: { companies: Company[]; signals: Signal[]; enableNavigation?: boolean }) {
