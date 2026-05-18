@@ -11,6 +11,7 @@ import { AutoRefresh } from '@/components/auto-refresh'
 import { PageHeader } from '@/components/page-header'
 import { NetworkTeaser } from '@/components/network-teaser'
 import type { Signal, DashboardStats } from '@/lib/types'
+import { OnboardingPrompt } from '@/components/onboarding-prompt'
 import { TrendingUp } from 'lucide-react'
 
 async function getDashboardData(userId: string) {
@@ -55,6 +56,9 @@ export default async function DashboardPage() {
         subtitle={new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
         right={<CompanyForm />}
       />
+
+      {/* Onboarding — shown when no companies tracked yet */}
+      {isEmpty && <OnboardingPrompt userId={session!.user.id} />}
 
       {/* Empty state */}
       {isEmpty && (
