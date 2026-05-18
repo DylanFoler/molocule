@@ -5,7 +5,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { scanCompany } from '@/lib/scanner'
 
 const BATCH_SIZE = 3
-const MAX_RUNTIME_MS = 8_500 // stop before Vercel hobby's 10s hard limit
+const MAX_RUNTIME_MS = 8_500
 
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
@@ -14,21 +14,30 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = createServiceClient()
+
+  // Fetch companies joined with their owner's preferences so we can skip
+  // users who have turned off nightly scanning
   const { data: companies, error } = await supabase
     .from('companies')
-    .select('id, name, website, blog_rss_url')
+    .select('id, name, website, blog_rss_url, user_id, users!inner(preferences)')
 
   if (error || !companies) {
     return NextResponse.json({ error: 'Failed to fetch companies' }, { status: 500 })
   }
 
+  // Filter to only companies whose owner has scanning enabled (default: true)
+  const active = companies.filter(c => {
+    const prefs = (c.users as unknown as Record<string, unknown>)?.preferences as Record<string, unknown> | null
+    return prefs?.scanning_enabled !== false
+  })
+
   const startTime = Date.now()
   const results: Array<{ company: string; signals_found: number; sources: string[]; errors: string[] }> = []
   let scanned = 0
 
-  for (let i = 0; i < companies.length; i += BATCH_SIZE) {
+  for (let i = 0; i < active.length; i += BATCH_SIZE) {
     if (Date.now() - startTime > MAX_RUNTIME_MS) break
-    const batch = companies.slice(i, i + BATCH_SIZE)
+    const batch = active.slice(i, i + BATCH_SIZE)
     const batchResults = await Promise.all(
       batch.map(c => scanCompany(c).catch(() => ({ signals_found: 0, sources: [], errors: [] })))
     )
@@ -40,7 +49,8 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     scanned,
-    total: companies.length,
+    total: active.length,
+    skipped: companies.length - active.length,
     results,
     timestamp: new Date().toISOString(),
   })

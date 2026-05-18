@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Building2, Search, RefreshCw, Loader2 } from 'lucide-react'
+import { Building2, Search, RefreshCw, Loader2, Moon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { CompanyCard } from '@/components/company-card'
 import { PageHeader } from '@/components/page-header'
@@ -13,11 +13,13 @@ import { getCached, setCached } from '@/lib/page-cache'
 import type { Company, Signal, SignalType } from '@/lib/types'
 
 export default function CompaniesPage() {
-  const [companies,   setCompanies]   = useState<Company[]>(() => getCached<Company[]>('companies') ?? [])
-  const [signals,     setSignals]     = useState<Signal[]>(() => getCached<Signal[]>('signals-500') ?? [])
-  const [loading,     setLoading]     = useState(() => getCached('companies') === null)
-  const [search,      setSearch]      = useState('')
-  const [scanningAll, setScanningAll] = useState(false)
+  const [companies,      setCompanies]      = useState<Company[]>(() => getCached<Company[]>('companies') ?? [])
+  const [signals,        setSignals]        = useState<Signal[]>(() => getCached<Signal[]>('signals-500') ?? [])
+  const [loading,        setLoading]        = useState(() => getCached('companies') === null)
+  const [search,         setSearch]         = useState('')
+  const [scanningAll,    setScanningAll]    = useState(false)
+  const [scanEnabled,  setScanEnabled]  = useState(true)
+  const [toggling,     setToggling]     = useState(false)
 
   const fetchData = useCallback(async () => {
     const [cRes, sRes] = await Promise.all([
@@ -34,6 +36,28 @@ export default function CompaniesPage() {
     const id = setInterval(fetchData, 30_000)
     return () => clearInterval(id)
   }, [fetchData])
+
+  useEffect(() => {
+    fetch('/api/scan-toggle').then(r => r.json()).then(d => setScanEnabled(d.enabled)).catch(() => {})
+  }, [])
+
+  async function handleToggleScan() {
+    setToggling(true)
+    const next = !scanEnabled
+    try {
+      await fetch('/api/scan-toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: next }),
+      })
+      setScanEnabled(next)
+      toast({ title: next ? 'Nightly scan enabled' : 'Nightly scan paused' })
+    } catch {
+      toast({ title: 'Could not update scan setting', variant: 'destructive' })
+    } finally {
+      setToggling(false)
+    }
+  }
 
   async function handleDelete(id: string) {
     const res = await fetch(`/api/companies?id=${id}`, { method: 'DELETE' })
@@ -92,6 +116,19 @@ export default function CompaniesPage() {
         subtitle={`${companies.length} ${companies.length === 1 ? 'company' : 'companies'} tracked`}
         right={
           <>
+            <button onClick={handleToggleScan} disabled={toggling}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all"
+              style={{
+                color: scanEnabled ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.28)',
+                background: scanEnabled ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)',
+                border: `1px solid ${scanEnabled ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.05)'}`,
+              }}
+              title={scanEnabled ? 'Nightly scan is on — click to pause' : 'Nightly scan is paused — click to enable'}
+              onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.8)')}
+              onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = scanEnabled ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.28)')}>
+              {toggling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Moon className="w-3.5 h-3.5" />}
+              {scanEnabled ? 'Scan on' : 'Scan off'}
+            </button>
             {companies.length > 0 && (
               <button onClick={handleScanAll} disabled={scanningAll}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all"
