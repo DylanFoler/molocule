@@ -7,6 +7,15 @@ function getClient() {
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 }
 
+const SYSTEM_PROMPT = `You are a senior analyst writing signal insights for a business intelligence tool. Your job is to extract the specific business implication from a signal, not to tell the reader to monitor anything.
+
+Rules:
+- State what this MEANS right now, not what to watch for later
+- Name specific numbers, people, products, and percentages from the headline
+- Connect the signal to a concrete business outcome: deals, headcount, pricing, roadmap, or competitive position
+- Never use: monitor, watch for, follow-on, directional shift, worth noting, opens doors, may signal, keep an eye
+- No em dashes. 2 to 3 sentences, max 60 words.`
+
 // Fallbacks parse the title for specific keywords and derive an actual implication
 function buildFallback(type: SignalType, title: string, company: string): string {
   const t = title.toLowerCase()
@@ -36,11 +45,9 @@ function buildFallback(type: SignalType, title: string, company: string): string
   }
 
   if (type === 'PRODUCT_LAUNCH') {
-    // Extract what was actually launched from the title
     const launchMatch = title.match(/(?:launches?|releases?|ships?|announces?|introduces?|debuts?|unveils?|open[- ]sources?)\s+([^,.|–—]{4,55})/i)
     const product = launchMatch?.[1]?.trim().replace(/\s*[-–—].*$/, '').trim()
 
-    // Detect launch category from keywords
     const isAI = /\bai\b|agent|model|llm|gpt|intelligence|copilot|assistant/i.test(title)
     const isAPI = /\bapi\b|sdk|developer|integration|webhook|platform/i.test(title)
     const isEnterprise = /enterprise|b2b|team|workspace|sso|compliance|soc/i.test(title)
@@ -49,9 +56,9 @@ function buildFallback(type: SignalType, title: string, company: string): string
     const what = product ? `"${product}"` : 'a new product'
 
     if (isAI) return `${company} shipped ${what}, adding AI capabilities that directly compete with any tool currently handling that workflow for your customers. Evaluate whether your positioning addresses this before ${company}'s sales team does.`
-    if (isAPI) return `${company} released ${what}, expanding the developer surface of their platform. New API capabilities tend to generate ecosystem lock-in quickly — assess whether this creates a dependency risk for any integrations in your stack.`
-    if (isEnterprise) return `${company} launched ${what} targeting enterprise buyers, signaling they are moving upmarket. This typically changes their sales motion, contract sizes, and the personas they prioritize — mid-market and SMB customers may see slower support as a result.`
-    if (isPricing) return `${company} changed their pricing with ${what}. Pricing restructures force existing customers to evaluate alternatives at renewal — this is a window to engage any ${company} customer who is unhappy with the new tiers.`
+    if (isAPI) return `${company} released ${what}, expanding the developer surface of their platform. New API capabilities tend to generate ecosystem lock-in quickly, so assess whether this creates a dependency risk for any integrations in your stack.`
+    if (isEnterprise) return `${company} launched ${what} targeting enterprise buyers, signaling they are moving upmarket. This typically changes their sales motion, contract sizes, and the personas they prioritize, meaning mid-market and SMB customers may see slower support as a result.`
+    if (isPricing) return `${company} changed their pricing with ${what}. Pricing restructures force existing customers to evaluate alternatives at renewal, which is a window to engage any ${company} customer who is unhappy with the new tiers.`
     return `${company} shipped ${what}. The companies most at risk are those whose core value proposition overlaps directly with what this launch does. Map it against your competitive landscape before it shows up in a prospect's RFP.`
   }
 
@@ -80,7 +87,6 @@ function buildFallback(type: SignalType, title: string, company: string): string
   if (/invest|bet|back|fund(?:s|ed)?.*startup/.test(t)) {
     return `${company} investing in or backing another company reveals where its strategic bets are, which is often a more reliable signal of future product direction than any roadmap announcement.`
   }
-  // Last-resort fallback: extract the core action from the title
   const cleanTitle = title.replace(/\s*[-–|]\s*.{0,30}$/, '').trim()
   return `${cleanTitle}. This signals a deliberate shift in how ${company} operates or positions itself, which is worth reading against their recent product and hiring moves to understand the full direction.`
 }
@@ -97,29 +103,27 @@ export async function analyzeSignal(params: {
     const client = getClient()
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 180,
+      max_tokens: 350,
+      system: [
+        {
+          type: 'text',
+          text: SYSTEM_PROMPT,
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
       messages: [{
         role: 'user',
-        content: `You are a senior analyst writing signal insights. Your job is to extract the specific implication from this signal, not to tell the reader to monitor anything.
-
-Rules:
-- State what this MEANS, not what to watch for
-- Name numbers, people, and specific products from the headline
-- Never use: monitor, watch for, follow-on, directional shift, worth noting, opens doors, may signal
-- No em dashes. One sentence, max 28 words.
-
-Company: ${params.companyName}
+        content: `Company: ${params.companyName}
 Signal type: ${params.signalType}
 Headline: ${params.title}
-Details: ${params.summary.slice(0, 400)}
+Details: ${params.summary.slice(0, 800)}
 
-Write ONE sentence stating the concrete business implication right now, not a suggestion to track something later.`,
+Write 2 to 3 sentences stating the concrete business implications right now.`,
       }],
     })
     const content = message.content[0]
     if (content.type !== 'text') return buildFallback(params.signalType, params.title, params.companyName)
     const text = content.text.trim()
-    // Reject any output that tells the user to monitor/watch rather than stating the implication
     if (/monitor|watch for|follow.?on|worth noting|opens doors|may signal|good time to|directional shift|keep an eye/i.test(text)) {
       return buildFallback(params.signalType, params.title, params.companyName)
     }
@@ -128,4 +132,3 @@ Write ONE sentence stating the concrete business implication right now, not a su
     return buildFallback(params.signalType, params.title, params.companyName)
   }
 }
-
