@@ -3,8 +3,26 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
-import { createServiceClient } from '@/lib/supabase'
+import { prisma } from '@/lib/db'
 import type { SignalType } from '@/lib/types'
+
+function serializeSignal(s: {
+  id: string; company_id: string; type: string; title: string; url: string | null
+  summary: string | null; llm_insight: string | null; is_new: boolean
+  detected_at: Date; created_at: Date
+  company?: { id: string; user_id: string; name: string; website: string; linkedin_url: string | null; github_org: string | null; blog_rss_url: string | null; created_at: Date; updated_at: Date }
+}) {
+  return {
+    ...s,
+    detected_at: s.detected_at.toISOString(),
+    created_at: s.created_at.toISOString(),
+    company: s.company ? {
+      ...s.company,
+      created_at: s.company.created_at.toISOString(),
+      updated_at: s.company.updated_at.toISOString(),
+    } : undefined,
+  }
+}
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -15,36 +33,29 @@ export async function GET(req: NextRequest) {
   const companyId = searchParams.get('company_id')
   const limit = parseInt(searchParams.get('limit') ?? '50')
 
-  const supabase = createServiceClient()
-
-  // !inner turns the join into an inner join so only signals belonging
-  // to the current user's companies are returned (not all signals)
-  let query = supabase
-    .from('signals')
-    .select('*, company:companies!inner(*)')
-    .eq('companies.user_id', session.user.id)
-    .order('detected_at', { ascending: false })
-    .limit(limit)
-
-  if (type) query = query.eq('type', type)
-  if (companyId) query = query.eq('company_id', companyId)
-
-  const { data, error } = await query
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  const signals = await prisma.signal.findMany({
+    where: {
+      company: { user_id: session.user.id },
+      ...(type ? { type } : {}),
+      ...(companyId ? { company_id: companyId } : {}),
+    },
+    include: { company: true },
+    orderBy: { detected_at: 'desc' },
+    take: limit,
+  })
 
   // Mark viewed signals as not new
-  const newIds = data?.filter((s) => s.is_new).map((s) => s.id) ?? []
+  const newIds = signals.filter(s => s.is_new).map(s => s.id)
   if (newIds.length > 0) {
-    await supabase.from('signals').update({ is_new: false }).in('id', newIds)
+    await prisma.signal.updateMany({ where: { id: { in: newIds } }, data: { is_new: false } })
   }
 
-  return NextResponse.json(data ?? [], {
+  return NextResponse.json(signals.map(serializeSignal), {
     headers: { 'Cache-Control': 'private, no-cache' },
   })
 }
 
 export async function POST(req: NextRequest) {
-  // Internal endpoint for workers to push signals, secured by CRON_SECRET
   const authHeader = req.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -57,28 +68,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'company_id, type, and title are required' }, { status: 400 })
   }
 
-  const supabase = createServiceClient()
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+  const existing = await prisma.signal.findFirst({
+    where: { company_id, title, detected_at: { gte: sevenDaysAgo } },
+  })
+  if (existing) return NextResponse.json({ skipped: true, reason: 'duplicate' })
 
-  // Deduplication: skip if same title seen in last 7 days
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-  const { data: existing } = await supabase
-    .from('signals')
-    .select('id')
-    .eq('company_id', company_id)
-    .eq('title', title)
-    .gte('detected_at', sevenDaysAgo)
-    .limit(1)
+  const signal = await prisma.signal.create({
+    data: { company_id, type, title, url, summary, llm_insight, is_new: true },
+  })
 
-  if (existing && existing.length > 0) {
-    return NextResponse.json({ skipped: true, reason: 'duplicate' })
-  }
-
-  const { data, error } = await supabase
-    .from('signals')
-    .insert({ company_id, type, title, url, summary, llm_insight, is_new: true })
-    .select()
-    .single()
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data, { status: 201 })
+  return NextResponse.json(serializeSignal(signal), { status: 201 })
 }

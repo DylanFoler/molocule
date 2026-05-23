@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase'
+import { prisma } from '@/lib/db'
 import { scanCompany } from '@/lib/scanner'
 
 const BATCH_SIZE = 3
@@ -13,22 +13,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const supabase = createServiceClient()
+  const companies = await prisma.company.findMany({
+    include: { user: { select: { preferences: true } } },
+  })
 
-  // Fetch companies joined with their owner's preferences so we can skip
-  // users who have turned off nightly scanning
-  const { data: companies, error } = await supabase
-    .from('companies')
-    .select('id, name, website, blog_rss_url, user_id, users!inner(preferences)')
-
-  if (error || !companies) {
-    return NextResponse.json({ error: 'Failed to fetch companies' }, { status: 500 })
-  }
-
-  // Filter to only companies whose owner has scanning enabled (default: true)
+  // Filter to companies whose owner has scanning enabled (default: true)
   const active = companies.filter(c => {
-    const prefs = (c.users as unknown as Record<string, unknown>)?.preferences as Record<string, unknown> | null
-    return prefs?.scanning_enabled !== false
+    const prefs = JSON.parse(c.user.preferences || '{}') as Record<string, unknown>
+    return prefs.scanning_enabled !== false
   })
 
   const startTime = Date.now()

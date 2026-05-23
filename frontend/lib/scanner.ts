@@ -1,4 +1,4 @@
-import { createServiceClient } from '@/lib/supabase'
+import { prisma } from '@/lib/db'
 import { analyzeSignal } from '@/lib/claude'
 import { getSearchTerms } from '@/lib/company-aliases'
 import type { SignalType } from '@/lib/types'
@@ -160,28 +160,31 @@ async function pushSignals(
   companyName: string,
   items: Array<{ title: string; link: string; description?: string; pubDate?: string }>
 ): Promise<number> {
-  const supabase = createServiceClient()
   let count = 0
-  const cutoff = new Date(Date.now() - SEVEN_DAYS_MS).toISOString()
+  const cutoff = new Date(Date.now() - SEVEN_DAYS_MS)
 
   for (const item of items) {
     if (!item.title?.trim()) continue
 
-    const { data: existing } = await supabase
-      .from('signals').select('id')
-      .eq('company_id', companyId).eq('title', item.title.trim())
-      .gte('detected_at', cutoff).limit(1).maybeSingle()
+    const existing = await prisma.signal.findFirst({
+      where: { company_id: companyId, title: item.title.trim(), detected_at: { gte: cutoff } },
+      select: { id: true },
+    })
     if (existing) continue
 
     const type = classifyContent(item.title, item.description ?? '')
     const insight = await analyzeSignal({ companyName, signalType: type, title: item.title, summary: item.description ?? '' })
 
-    const { error } = await supabase.from('signals').insert({
-      company_id: companyId, type, title: item.title.trim(),
-      url: item.link, summary: item.description?.slice(0, 500),
-      llm_insight: insight, is_new: true,
-    })
-    if (!error) count++
+    try {
+      await prisma.signal.create({
+        data: {
+          company_id: companyId, type, title: item.title.trim(),
+          url: item.link, summary: item.description?.slice(0, 500),
+          llm_insight: insight, is_new: true,
+        },
+      })
+      count++
+    } catch { /* skip on constraint errors */ }
   }
   return count
 }

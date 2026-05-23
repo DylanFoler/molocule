@@ -59,33 +59,37 @@ Track buying signals across target companies. Molocule scans the web nightly, cl
 |---|---|
 | Frontend + API routes | Next.js (App Router), TypeScript, Tailwind CSS |
 | Auth | NextAuth.js, GitHub OAuth |
-| Database | Supabase (Postgres + RLS) |
+| Database | SQLite via Prisma ORM |
 | LLM | Claude Sonnet 4.6 (signal insights, prompt caching), Claude Haiku 4.5 (company discovery) |
 | Scheduling | GitHub Actions (nightly cron at 06:00 UTC) |
-| Deployment | Vercel |
+| Deployment | Vercel (or any Node.js host) |
 
 ---
 
 ## Quick start
 
-### 1. Supabase
-
-- Create a project at [supabase.com](https://supabase.com)
-- Run `supabase/schema.sql` in the SQL Editor
-
-### 2. GitHub OAuth App
+### 1. GitHub OAuth App
 
 - Go to github.com/settings/developers, OAuth Apps, New OAuth App
 - Homepage URL: `http://localhost:3000`
 - Callback URL: `http://localhost:3000/api/auth/callback/github`
 
-### 3. Environment
+### 2. Environment
 
 ```bash
 cd frontend
 cp .env.example .env.local
-# Fill in all values — see comments in .env.example
+# Fill in NEXTAUTH_SECRET, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, CRON_SECRET
 ```
+
+### 3. Database
+
+```bash
+cd frontend
+npx prisma db push
+```
+
+This creates `prisma/molocule.db` automatically — no external database service needed.
 
 ### 4. Run locally
 
@@ -107,35 +111,13 @@ molocule/
 │   │   ├── (dashboard)/    # Signal overview, companies, signals, network
 │   │   └── api/            # REST endpoints: companies, signals, cron, scan-toggle, suggest
 │   ├── components/         # React components including force-directed network graph
-│   └── lib/                # Claude, scanner, page-cache, company-aliases
-├── supabase/
-│   └── schema.sql          # Full DB schema with RLS
+│   ├── lib/                # Claude, scanner, page-cache, company-aliases, Prisma client
+│   └── prisma/
+│       ├── schema.prisma   # Database schema
+│       └── molocule.db     # SQLite database (auto-created on first run)
 ├── .github/workflows/
 │   └── nightly-signals.yml # Daily signal scan at 06:00 UTC
 └── vercel.json             # Build config
-```
-
----
-
-## Deploy to Vercel
-
-1. Import the repo in [Vercel](https://vercel.com)
-2. Leave Root Directory as `./` (vercel.json handles it)
-3. Add all environment variables from `frontend/.env.example`
-4. Deploy
-
-### GitHub Actions secrets
-
-Set these in your repo under Settings, Secrets and variables, Actions:
-
-| Secret | Value |
-|---|---|
-| `NEXT_PUBLIC_URL` | Your Vercel deployment URL, no trailing slash |
-| `CRON_SECRET` | Must match `CRON_SECRET` in your Vercel env vars |
-
-Generate `CRON_SECRET` with:
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
 ---
@@ -148,11 +130,25 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 | `NEXTAUTH_SECRET` | Yes | Random 32-char hex string |
 | `GITHUB_CLIENT_ID` | Yes | From your GitHub OAuth App |
 | `GITHUB_CLIENT_SECRET` | Yes | From your GitHub OAuth App |
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key (bypasses RLS) |
+| `DATABASE_URL` | Yes | SQLite path — `file:./prisma/molocule.db` |
 | `ANTHROPIC_API_KEY` | No | Claude API key — app works without it |
 | `CRON_SECRET` | Yes | Shared secret for the nightly scan webhook |
+
+Generate secrets with:
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+---
+
+## GitHub Actions secrets
+
+Set these in your repo under Settings, Secrets and variables, Actions:
+
+| Secret | Value |
+|---|---|
+| `NEXT_PUBLIC_URL` | Your deployment URL, no trailing slash |
+| `CRON_SECRET` | Must match `CRON_SECRET` in your app's env vars |
 
 ---
 

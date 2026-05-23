@@ -1,6 +1,6 @@
 import NextAuth, { type NextAuthOptions } from 'next-auth'
 import GithubProvider from 'next-auth/providers/github'
-import { createServiceClient } from '@/lib/supabase'
+import { prisma } from '@/lib/db'
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -17,23 +17,26 @@ export const authOptions: NextAuthOptions = {
       if (!user.email) return false
 
       try {
-        const supabase = createServiceClient()
-        const { error } = await supabase.from('users').upsert(
-          {
+        await prisma.user.upsert({
+          where: { id: user.id },
+          update: {
+            email: user.email,
+            name: user.name,
+            image: user.image,
+            github_access_token: account?.access_token,
+          },
+          create: {
             id: user.id,
             email: user.email,
             name: user.name,
             image: user.image,
             github_access_token: account?.access_token,
           },
-          { onConflict: 'id' }
-        )
-        if (error) console.error('[signIn] Supabase upsert error:', error.message)
+        })
       } catch (e) {
-        console.error('[signIn] Unexpected error:', e)
+        console.error('[signIn] User upsert error:', e)
       }
 
-      // Always allow sign-in — Supabase sync failure should not block access
       return true
     },
 

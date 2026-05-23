@@ -3,21 +3,19 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
-import { createServiceClient } from '@/lib/supabase'
+import { prisma } from '@/lib/db'
 
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const supabase = createServiceClient()
-  const { data } = await supabase
-    .from('users')
-    .select('preferences')
-    .eq('id', session.user.id)
-    .single()
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { preferences: true },
+  })
 
-  const enabled = (data?.preferences as Record<string, unknown>)?.scanning_enabled !== false
-  return NextResponse.json({ enabled })
+  const prefs = JSON.parse(user?.preferences || '{}') as Record<string, unknown>
+  return NextResponse.json({ enabled: prefs.scanning_enabled !== false })
 }
 
 export async function POST(req: NextRequest) {
@@ -25,19 +23,17 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { enabled } = await req.json().catch(() => ({ enabled: true }))
-  const supabase = createServiceClient()
 
-  const { data: existing } = await supabase
-    .from('users')
-    .select('preferences')
-    .eq('id', session.user.id)
-    .single()
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { preferences: true },
+  })
 
-  const prefs = (existing?.preferences as Record<string, unknown>) ?? {}
-  await supabase
-    .from('users')
-    .update({ preferences: { ...prefs, scanning_enabled: enabled } })
-    .eq('id', session.user.id)
+  const prefs = JSON.parse(user?.preferences || '{}') as Record<string, unknown>
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { preferences: JSON.stringify({ ...prefs, scanning_enabled: enabled }) },
+  })
 
   return NextResponse.json({ enabled })
 }

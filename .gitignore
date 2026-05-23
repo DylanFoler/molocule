@@ -17,3 +17,5 @@ coverage/
 *.txt
 *.log
 .claude/
+frontend/prisma/*.db
+frontend/prisma/*.db-journal

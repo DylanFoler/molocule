@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
-import { createServiceClient } from '@/lib/supabase'
+import { prisma } from '@/lib/db'
 import { StatsOverview } from '@/components/stats-overview'
 import { SignalCard } from '@/components/signal-card'
 import { CompanyForm } from '@/components/company-form'
@@ -15,31 +15,40 @@ import { OnboardingPrompt } from '@/components/onboarding-prompt'
 import { TrendingUp } from 'lucide-react'
 
 async function getDashboardData(userId: string) {
-  const supabase = createServiceClient()
+  const today = new Date(); today.setHours(0, 0, 0, 0)
 
-  const [companiesRes, recentSignalsRes] = await Promise.all([
-    supabase.from('companies').select('id').eq('user_id', userId),
-    supabase
-      .from('signals')
-      .select('*, company:companies!inner(*)')
-      .eq('companies.user_id', userId)
-      .order('detected_at', { ascending: false })
-      .limit(8),
+  const [companies, recentSignalsRaw, allSignalMeta] = await Promise.all([
+    prisma.company.findMany({ where: { user_id: userId }, select: { id: true } }),
+    prisma.signal.findMany({
+      where: { company: { user_id: userId } },
+      include: { company: true },
+      orderBy: { detected_at: 'desc' },
+      take: 8,
+    }),
+    prisma.signal.findMany({
+      where: { company: { user_id: userId } },
+      select: { id: true, detected_at: true },
+    }),
   ])
 
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  const companyIds = (companiesRes.data ?? []).map(c => c.id)
-  const signalsRes = companyIds.length > 0
-    ? await supabase.from('signals').select('id, detected_at').in('company_id', companyIds)
-    : { data: [] }
-
   const stats: DashboardStats = {
-    total_companies:   companiesRes.data?.length ?? 0,
-    active_signals:    signalsRes.data?.length ?? 0,
-    new_signals_today: (signalsRes.data ?? []).filter(s => new Date(s.detected_at) >= today).length,
+    total_companies: companies.length,
+    active_signals: allSignalMeta.length,
+    new_signals_today: allSignalMeta.filter(s => s.detected_at >= today).length,
   }
 
-  return { stats, recentSignals: recentSignalsRes.data ?? [] }
+  const recentSignals = recentSignalsRaw.map(s => ({
+    ...s,
+    detected_at: s.detected_at.toISOString(),
+    created_at: s.created_at.toISOString(),
+    company: s.company ? {
+      ...s.company,
+      created_at: s.company.created_at.toISOString(),
+      updated_at: s.company.updated_at.toISOString(),
+    } : undefined,
+  }))
+
+  return { stats, recentSignals }
 }
 
 export default async function DashboardPage() {
@@ -57,10 +66,8 @@ export default async function DashboardPage() {
         right={<CompanyForm />}
       />
 
-      {/* Onboarding — shown when no companies tracked yet */}
       {isEmpty && <OnboardingPrompt userId={session!.user.id} />}
 
-      {/* Empty state */}
       {isEmpty && (
         <div className="rounded-xl p-8 flex items-center justify-between gap-6"
           style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
@@ -80,7 +87,6 @@ export default async function DashboardPage() {
 
       <StatsOverview stats={stats} />
 
-      {/* Recent Signals */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -120,7 +126,6 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      {/* Network teaser — client component to avoid server-side onMouseEnter */}
       {stats.total_companies > 1 && (
         <NetworkTeaser companyCount={stats.total_companies} />
       )}
