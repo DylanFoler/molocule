@@ -20,6 +20,15 @@ interface Edge {
 
 interface InfoPanel { type: 'node' | 'edge'; title: string; subtitle: string; detail: string }
 
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>').replace(/&quot;/gi, '"').replace(/&apos;/gi, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .replace(/\s{2,}/g, ' ').trim()
+}
+
 const EDGE_COLORS: Record<EdgeKind, string> = {
   COMPETITIVE:     'rgba(248,113,113,0.7)',
   TALENT_FLOW:     'rgba(251,191,36,0.7)',
@@ -620,7 +629,7 @@ export function CompanyNetwork({ companies, signals, enableNavigation = true }: 
           <p className="text-sm font-bold mb-0.5 pr-4" style={{color:'rgba(255,255,255,0.92)'}}>{infoPanel.title}</p>
           <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{color:'rgba(255,255,255,0.35)'}}>{infoPanel.subtitle}</p>
           <div className="h-px mb-3" style={{background:'rgba(255,255,255,0.07)'}} />
-          <pre className="text-[11px] leading-relaxed whitespace-pre-wrap font-sans" style={{color:'rgba(255,255,255,0.6)'}}>{infoPanel.detail}</pre>
+          <pre className="text-[11px] leading-relaxed whitespace-pre-wrap font-sans" style={{color:'rgba(255,255,255,0.6)'}}>{decodeEntities(infoPanel.detail)}</pre>
         </div>
       )}
     </div>
