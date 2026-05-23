@@ -169,11 +169,20 @@ async function guessRssUrl(baseUrl: string): Promise<string | null> {
     fetch(origin + path, {
       signal: AbortSignal.timeout(2500),
       headers: { 'User-Agent': 'Molocule-Enricher/1.0' },
-      method: 'HEAD', // HEAD is faster, just check status + content-type
-    }).then(res => {
+      method: 'HEAD',
+    }).then(async res => {
+      // Some servers (Ghost, certain WordPress) return 405 for HEAD even when the feed exists
+      if (res.status === 405) {
+        const get = await fetch(origin + path, {
+          signal: AbortSignal.timeout(2500),
+          headers: { 'User-Agent': 'Molocule-Enricher/1.0' },
+        }).catch(() => null)
+        if (!get) return null
+        const ct = get.headers.get('content-type') ?? ''
+        return get.ok && /xml|rss|atom/.test(ct) ? origin + path : null
+      }
       const ct = res.headers.get('content-type') ?? ''
-      if (res.ok && /xml|rss|atom/.test(ct)) return origin + path
-      return null
+      return res.ok && /xml|rss|atom/.test(ct) ? origin + path : null
     }).catch(() => null)
   )
 
@@ -256,7 +265,7 @@ export async function POST(req: NextRequest) {
   let rssUrl = meta.rssUrl
   if (!rssUrl) rssUrl = await guessRssUrl(websiteUrl)
   if (!rssUrl) {
-    const resolvedSlug = cleanCompanyName(meta.title, companyName, websiteUrl).toLowerCase().replace(/[^a-z0-9]/g, '')
+    const resolvedSlug = cleanCompanyName(meta.title, companyName, websiteUrl).toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
     const substackUrl = `https://${resolvedSlug}.substack.com/feed`
     try {
       const r = await fetch(substackUrl, { method: 'HEAD', signal: AbortSignal.timeout(2500) })

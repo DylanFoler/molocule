@@ -57,6 +57,12 @@ export const authOptions: NextAuthOptions = {
     error: '/',
   },
   session: { strategy: 'jwt' },
+  logger: {
+    error(code, metadata) {
+      if (code === 'JWT_SESSION_ERROR') return
+      console.error('[next-auth]', code, metadata)
+    },
+  },
 }
 
 const handler = NextAuth(authOptions)

@@ -4,7 +4,10 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { LoginPage } from '@/components/login-page'
 
 export default async function Home() {
-  const session = await getServerSession(authOptions)
+  let session = null
+  try {
+    session = await getServerSession(authOptions)
+  } catch { /* stale / invalid JWT cookie — treat as unauthenticated */ }
   if (session) redirect('/dashboard')
   return <LoginPage />
 }
