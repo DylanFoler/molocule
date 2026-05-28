@@ -15,12 +15,15 @@ export function LoadDemoButton({ variant = 'full', onLoad }: { variant?: 'full' 
     setLoading(true)
     try {
       const res = await fetch('/api/demo/seed', { method: 'POST' })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast({ title: 'Could not load demo', description: data.error ?? `Server error ${res.status}`, variant: 'destructive' })
+        return
+      }
       toast({
         title: 'Demo loaded',
         description: `${data.companies ?? 8} companies and ${data.signals ?? 18} signals are ready.`,
       })
-      // Bust all caches so every client page re-fetches fresh data
       setCached('companies', null)
       setCached('signals-ALL', null)
       setCached('signals-500', null)

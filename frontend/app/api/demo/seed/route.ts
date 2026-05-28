@@ -72,7 +72,9 @@ export async function POST() {
   }))
 
   const { error: sigErr } = await supabase.from('signals').insert(signals)
-  if (sigErr) console.warn('Signal insert warning:', sigErr.message)
+  if (sigErr) {
+    return NextResponse.json({ error: `Signal insert failed: ${sigErr.message}` }, { status: 500 })
+  }
 
   return NextResponse.json({ seeded: true, companies: companies.length, signals: signals.length })
 }
