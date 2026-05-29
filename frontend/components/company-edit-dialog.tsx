@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,6 +30,19 @@ export function CompanyEditDialog({ company, open, onClose, onSaved }: Props) {
     github_org:   company.github_org ?? '',
     blog_rss_url: company.blog_rss_url ?? '',
   })
+
+  // Sync form when dialog opens so edits made elsewhere are reflected
+  useEffect(() => {
+    if (open) {
+      setForm({
+        name:         company.name,
+        website:      company.website,
+        linkedin_url: company.linkedin_url ?? '',
+        github_org:   company.github_org ?? '',
+        blog_rss_url: company.blog_rss_url ?? '',
+      })
+    }
+  }, [open, company])
 
   async function handleSave() {
     if (!form.name || !form.website) return

@@ -89,6 +89,7 @@ export function OnboardingPrompt({ userId: _userId }: OnboardingPromptProps) {
       description: 'Signals will appear after the next nightly scan.',
     })
     setTracking(false)
+    setDismissed(true)
     router.refresh()
   }
 

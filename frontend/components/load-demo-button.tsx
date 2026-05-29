@@ -43,7 +43,12 @@ export function LoadDemoButton({ variant = 'full', onLoad }: { variant?: 'full' 
       const res = await fetch('/api/demo/seed', { method: 'DELETE' })
       if (!res.ok) throw new Error()
       toast({ title: 'Demo data cleared' })
+      setCached('companies', null)
+      setCached('signals-ALL', null)
+      setCached('signals-500', null)
+      setCached('signals-200', null)
       router.refresh()
+      onLoad?.()
     } catch {
       toast({ title: 'Could not clear demo', variant: 'destructive' })
     } finally {

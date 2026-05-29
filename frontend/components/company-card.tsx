@@ -31,6 +31,7 @@ export function CompanyCard({ company, onDelete, onUpdate, signalTypes, onScanCo
     setScanning(true)
     try {
       const res  = await fetch(`/api/companies/${company.id}/scan`, { method: 'POST' })
+      if (!res.ok) throw new Error()
       const data = await res.json()
       const found = data?.signals_found ?? 0
       toast({
